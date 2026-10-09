@@ -52,7 +52,7 @@
   function redo() { const s=S();if(!s.future.length)return;s.history.push(JSON.stringify(s.project));s.project=JSON.parse(s.future.pop());s.selected=null;s.selectedIds.clear();syncUI();A.queueSave(); }
 
   // ── Floor management ─────────────────────────────────────────
-  function openFloorModal() { A.$('#floorModal').classList.add('show'); }
+  function openFloorModal() { A.$('#newFloorElevation').value=A.displayValue((A.floor().elevation||0)+300);delete A.$('#newFloorElevation').dataset.cm;A.$('#floorListModal').innerHTML=S().project.floors.map(f=>`<div>${A.escapeHtml(f.name)} · elevation ${A.formatLength(f.elevation||0)}</div>`).join('');A.$('#floorModal').classList.add('show'); }
   function renderFloors() {
     const s=S(),project=s.project;
     A.$('#floorTabs').innerHTML=project.floors.map((f,i)=>`<button class="floor-tab ${i===project.activeFloor?'active':''}" data-floor="${i}">${A.escapeHtml(f.name)}</button>`).join('')+`<button class="add-floor" id="addFloor" title="Add floor">+</button>`;
@@ -66,8 +66,13 @@
   function syncUI() {
     const project=S().project;
     A.$('#projectName').value=project.name;
+    if(A.$('#floorViewMode'))A.$('#floorViewMode').value=project.camera.allFloors?'all':'active';
     A.$('#compass').style.setProperty('--north',`${project.north||0}deg`);
     A.updateGridLegend();renderFloors();A.renderInspector();updateCounts();updateZoom();A.draw();
+  }
+  function selectFloorEntity(id){
+    const s=S();if(id){const index=s.project.floors.findIndex(f=>A.allEntities(f).some(o=>o.id===id));if(index>=0&&index!==s.project.activeFloor){s.project.activeFloor=index;renderFloors();A.queueSave();}}
+    A.select(id);
   }
 
   // ── Mobile tab switching ─────────────────────────────────────
@@ -95,6 +100,8 @@
     const s=S;
 
     canvas.addEventListener('pointerdown', e=>{
+      if(!S().pointerBackup)S().pointerBackup={project:JSON.stringify(S().project),history:[...S().history],future:[...S().future],offset:{...S().offset},scale:S().scale};
+      S().editSession=null;
       activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
       if(activePointers.size===2){
         const pts=Array.from(activePointers.values());
@@ -130,6 +137,7 @@
           s().interaction={type:'marquee',start:w,current:w,additive,clickTarget:hit?.id||null};
           if(!additive)A.select(null);
         } else {
+          if(hit.boundaryWallIds){A.select(hit.id);A.showHint('This room follows its boundary walls. Move a wall to edit it.');return;}
           A.select(hit.id);A.checkpoint();
           s().interaction={type:'move',id:hit.id,original:A.deep(hit),start:w};
         }
@@ -156,8 +164,8 @@
       }
       canvas.style.cursor='default';
       if(s().interaction.type==='pan'){s().offset.x=s().interaction.origin.x+(p.x-s().interaction.start.x);s().offset.y=s().interaction.origin.y+(p.y-s().interaction.start.y)}
-      else if(s().interaction.type==='move'){const o=A.findEntity(s().interaction.id),dx=A.snap(w.x-s().interaction.start.x),dy=A.snap(w.y-s().interaction.start.y),base=s().interaction.original;if(o.type==='wall'||o.type==='dimension'){o.x1=base.x1+dx;o.y1=base.y1+dy;o.x2=base.x2+dx;o.y2=base.y2+dy}else{o.x=base.x+dx;o.y=base.y+dy;if(A.floor().items.includes(o))A.applySmartGuides([o])}}
-      else if(s().interaction.type==='move-group'){const dx=A.snap(w.x-s().interaction.start.x),dy=A.snap(w.y-s().interaction.start.y);s().interaction.ids.forEach(id=>{const o=A.findEntity(id),base=s().interaction.originals[id];if(o&&base){o.x=base.x+dx;o.y=base.y+dy}});A.applySmartGuides(A.floor().items.filter(o=>s().interaction.ids.includes(o.id)))}
+      else if(s().interaction.type==='move'){const o=A.findEntity(s().interaction.id),dx=A.snap(w.x-s().interaction.start.x),dy=A.snap(w.y-s().interaction.start.y),base=s().interaction.original;if(o.type==='wall'||o.type==='dimension'||o.type==='beam'){o.x1=base.x1+dx;o.y1=base.y1+dy;o.x2=base.x2+dx;o.y2=base.y2+dy}else{o.x=base.x+dx;o.y=base.y+dy;if(A.floor().items.includes(o))A.applySmartGuides([o])}}
+      else if(s().interaction.type==='move-group'){const dx=A.snap(w.x-s().interaction.start.x),dy=A.snap(w.y-s().interaction.start.y);s().interaction.ids.forEach(id=>{const o=A.findEntity(id),base=s().interaction.originals[id];if(o&&base){o.x=base.x+dx;o.y=base.y+dy}});const moving=A.floor().items.filter(o=>s().interaction.ids.includes(o.id));A.applySmartGuides(moving);moving.forEach(o=>{if(['door','window'].includes(o.shape))A.hostOpening(o)});}
       else if(s().interaction.type==='rotate-group')A.applyGroupRotation(s().interaction,w)
       else if(s().interaction.type==='marquee')s().interaction.current={x:A.snap(w.x),y:A.snap(w.y)}
       else if(s().interaction.type==='resize-wall-start'||s().interaction.type==='resize-wall-end'){const o=A.findEntity(s().interaction.id);if(o){if(s().interaction.type==='resize-wall-start'){o.x1=A.snap(w.x);o.y1=A.snap(w.y)}else{o.x2=A.snap(w.x);o.y2=A.snap(w.y)}}}
@@ -172,11 +180,12 @@
 
     const handlePointerUp=e=>{
       activePointers.delete(e.pointerId);
+      s().pointerBackup=null;
       if(s().interaction?.type==='pinch'){s().interaction=null;pinchStartDist=0;A.queueSave();return}
       if(!s().interaction)return;
       if(s().interaction.type==='orbit'){s().interaction=null;A.queueSave();return}
       if(s().interaction.type==='move'||s().interaction.type==='move-group'||s().interaction.type==='rotate-group'){A.queueSave();A.renderInspector()}
-      if(['resize-item','resize-item-corner','rotate-item','resize-wall-start','resize-wall-end','rotate-wall'].includes(s().interaction.type)){A.queueSave();A.renderInspector()}
+      if(['resize-item','resize-item-corner','rotate-item','resize-wall-start','resize-wall-end','rotate-wall','resize-beam-start','resize-beam-end'].includes(s().interaction.type)){A.queueSave();A.renderInspector()}
       if(s().interaction.type==='marquee'){
         const dragDistance=Math.hypot(s().interaction.current.x-s().interaction.start.x,s().interaction.current.y-s().interaction.start.y)*s().scale;
         if(dragDistance>6)A.marqueeSelection(s().interaction);
@@ -246,13 +255,14 @@
           else if(s().interaction.type==='wall'){o={id:A.uid(),type:'wall',x1:a.x,y1:a.y,x2:b.x,y2:b.y,thickness:A.WALL_DEFAULT_THICKNESS,height:A.WALL_DEFAULT_HEIGHT,color:'#3e4944'};A.floor().walls.push(o)}
           else if(s().interaction.type==='roof'){const roofElevation=Math.max(A.WALL_DEFAULT_HEIGHT,...A.floor().rooms.map(r=>Number(r.ceilingHeight)||0));o={id:A.uid(),type:'roof',shape:'roof',name:`Roof ${A.floor().items.filter(x=>(x.shape||x.type)==='roof').length+1}`,x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),d:Math.abs(b.y-a.y),height:15.24,elevation:roofElevation,rotation:0,color:'#a8aaa5',material:'Concrete',roofMode:'visible',clearance:0,lockAspect:false};A.floor().items.push(o)}
           else{o={id:A.uid(),type:'dimension',x1:a.x,y1:a.y,x2:b.x,y2:b.y,color:'#62716a'};A.floor().dimensions.push(o)}
+          if(o.type==='dimension')A.attachDimension(o);
           A.select(o.id);A.queueSave();updateCounts();
         }
       }
       s().interaction=null;s().snapGuides=[];A.draw();
     };
     canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointercancel', handlePointerUp);
+    canvas.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);A.cancelInteraction();});
 
     canvas.addEventListener('wheel',e=>{e.preventDefault();if(s().viewMode==='3d'){s().project.camera.zoom=Math.max(.18,Math.min(1.4,s().project.camera.zoom*(e.deltaY>0?.9:1.1)));updateZoom();A.draw();return}const p=A.pointerPos(e),before=A.screenToWorld(p);s().scale=Math.max(.18,Math.min(1.8,s().scale*(e.deltaY>0?.9:1.1)));s().offset.x=p.x-before.x*s().scale;s().offset.y=p.y-before.y*s().scale;updateZoom();A.draw()},{passive:false});
   }
@@ -264,7 +274,7 @@
       if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
       if(window.atelier3D?.isWalking?.()){if(e.key==='Escape'){window.atelier3D.setWalk(false);A.renderInspector();A.showToast('Orbit view restored')}return}
       if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();A.deleteSelected();return}
-      if(e.key==='Escape'){S().interaction=null;A.select(null);A.setTool(S().viewMode==='3d'?'pan':'select')}
+      if(e.key==='Escape'){if(S().interaction)A.cancelInteraction();A.select(null);A.setTool(S().viewMode==='3d'?'pan':'select')}
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='c'){e.preventDefault();A.copySelected();return}
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='v'){e.preventDefault();A.pasteClipboard();return}
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='d'){e.preventDefault();A.duplicateSelected();return}
@@ -296,8 +306,11 @@
     A.$$('.tool[data-tool]').forEach(b=>b.onclick=()=>A.setTool(b.dataset.tool));
 
     // Toolbar actions
+    A.$('#projectsBtn').onclick=A.openLibrary;A.$('#newProjectBtn').onclick=A.newProject;
+    A.$('#traceRoomsBtn').onclick=A.deriveRooms;A.$('#exportSvgBtn').onclick=A.exportDrawing;A.$('#exportPdfBtn').onclick=A.exportPdfDrawing;A.$('#printPlanBtn').onclick=A.printDrawing;
+    A.$('#floorViewMode').onchange=e=>{A.checkpoint();s.project.camera.allFloors=e.target.value==='all';if(s.viewMode==='3d')fitPlan();window.atelier3D?.requestRebuild();A.queueSave();};
     A.$('#undoBtn').onclick=undo;A.$('#redoBtn').onclick=redo;A.$('#saveBtn').onclick=A.saveProject;A.$('#exportBtn').onclick=A.exportProject;
-    A.$('#importBtn').onclick=()=>A.$('#fileInput').click();A.$('#fileInput').onchange=e=>e.target.files[0]&&A.importProject(e.target.files[0]);
+    A.$('#importBtn').onclick=()=>A.$('#fileInput').click();A.$('#fileInput').onchange=e=>{const file=e.target.files[0];e.target.value='';if(file)A.importProject(file);};
     A.$('#projectName').oninput=e=>{s.project.name=e.target.value;A.queueSave()};
 
     // Catalog search + filter
@@ -305,11 +318,12 @@
     A.$('#categorySelect').onchange=e=>A.renderCatalog(A.$('#catalogSearch').value,e.target.value);
 
     // Grid / fit / zoom / structure
-    A.$('#gridBtn').onclick=()=>{s.project.grid=!s.project.grid;A.updateGridLegend();A.queueSave();A.draw();A.showToast(s.project.grid?'Grid visible':'Grid hidden')};
+    A.$('#gridBtn').onclick=()=>{A.checkpoint();s.project.grid=!s.project.grid;A.updateGridLegend();A.queueSave();A.draw();A.showToast(s.project.grid?'Grid visible':'Grid hidden')};
     const structBtn=A.$('#structureBtn');
     if(structBtn){
       structBtn.classList.toggle('active',s.project.showStructure!==false);
       structBtn.onclick=()=>{
+        A.checkpoint();
         s.project.showStructure = !(s.project.showStructure !== false);
         structBtn.classList.toggle('active', s.project.showStructure);
         A.draw();
@@ -330,7 +344,13 @@
     A.$('#newFloorElevation').oninput=e=>{e.target.dataset.cm=String(A.toCm(e.target.value))};
     A.$('#cancelFloor').onclick=()=>A.$('#floorModal').classList.remove('show');
     const closeFloorModalBtn=A.$('#closeFloorModalBtn');if(closeFloorModalBtn)closeFloorModalBtn.onclick=()=>A.$('#floorModal').classList.remove('show');
-    A.$('#confirmFloor').onclick=()=>{const name=A.$('#newFloorName').value.trim()||`Floor ${s.project.floors.length+1}`,elevation=Number(A.$('#newFloorElevation').dataset.cm||A.toCm(A.$('#newFloorElevation').value))||0;A.checkpoint();s.project.floors.push({id:A.uid(),name,elevation,rooms:[],walls:[],items:[],dimensions:[]});s.project.activeFloor=s.project.floors.length-1;s.selected=null;s.selectedIds.clear();A.$('#floorModal').classList.remove('show');syncUI();fitPlan();A.queueSave();A.showToast(`${name} added`)};
+    A.$('#confirmFloor').onclick=()=>{
+      const name=A.$('#newFloorName').value.trim()||`Floor ${s.project.floors.length+1}`,elevation=A.toCm(A.$('#newFloorElevation').value);
+      if(!Number.isFinite(elevation)){A.showToast('Enter a valid floor elevation');return;}
+      A.checkpoint();let next={id:A.uid(),name,elevation,rooms:[],walls:[],items:[],dimensions:[],columns:[],beams:[]};
+      if(A.$('#copyFloorContents').checked){next=A.deep(A.floor());const remap=new Map();for(const key of ['rooms','walls','items','dimensions','columns','beams'])for(const o of next[key]||[]){const old=o.id;o.id=A.uid();remap.set(old,o.id);}for(const key of ['rooms','items','dimensions'])for(const o of next[key]||[]){if(o.hostWallId)o.hostWallId=remap.get(o.hostWallId);if(o.boundaryWallIds)o.boundaryWallIds=o.boundaryWallIds.map(id=>remap.get(id)).sort();for(const end of [1,2])if(o['anchor'+end])o['anchor'+end].entityId=remap.get(o['anchor'+end].entityId);}Object.assign(next,{id:A.uid(),name,elevation});}
+      s.project.floors.push(next);s.project.activeFloor=s.project.floors.length-1;s.selected=null;s.selectedIds.clear();A.$('#floorModal').classList.remove('show');syncUI();fitPlan();A.queueSave();A.showToast(`${name} added`);
+    };
     A.$('#floorModal').addEventListener('click',e=>{if(e.target.id==='floorModal')e.currentTarget.classList.remove('show')});
 
     // Help modal
@@ -361,6 +381,8 @@
 
     // Mobile menu popover
     const mobileMenuBtn=A.$('#mobileMenuBtn'),mobileMenuPopover=A.$('#mobileMenuPopover');
+    A.$('#menuProjects').onclick=()=>{mobileMenuPopover.classList.remove('show');A.openLibrary();};
+    A.$('#menuObjects').onclick=()=>{mobileMenuPopover.classList.remove('show');A.$('#objectsBtn').click();};
     if(mobileMenuBtn&&mobileMenuPopover){
       mobileMenuBtn.onclick=e=>{e.stopPropagation();mobileMenuPopover.classList.toggle('show')};
       addEventListener('click',e=>{if(!mobileMenuPopover.contains(e.target)&&e.target!==mobileMenuBtn)mobileMenuPopover.classList.remove('show')});
@@ -389,11 +411,11 @@
     addEventListener('beforeunload',()=>{clearTimeout(s.saveTimer);A.saveProject()});
 
     // Bridge for renderer3d.js
-    window.atelierBridge={get project(){return s.project},floor:A.floor,planBounds:A.planBounds,get selected(){return s.selected},select:A.select,queueSave:A.queueSave,checkpoint:A.checkpoint,draw:A.draw,renderInspector:A.renderInspector,snap:A.snap,findEntity:A.findEntity,showToast:A.showToast,applySmartGuides:A.applySmartGuides,updateCameraUI(){A.updateCameraReadouts();updateZoom()}};
+    window.atelierBridge={get project(){return s.project},floor:A.floor,planBounds:A.planBounds,get selected(){return s.selected},select:selectFloorEntity,queueSave:A.queueSave,checkpoint:A.checkpoint,draw:A.draw,renderInspector:A.renderInspector,snap:A.snap,findEntity:A.findEntity,showToast:A.showToast,applySmartGuides:A.applySmartGuides,updateCameraUI(){A.updateCameraReadouts();updateZoom()}};
     window.addEventListener('atelier:renderer-ready',()=>window.atelier3D?.setVisible(s.viewMode==='3d'));
 
     // Boot
-    syncUnitPresentation();syncUI();setTimeout(fitPlan,80);
+    A.initEditingSupport();A.initAccessibility();A.initServiceRouting?.();syncUnitPresentation();syncUI();setTimeout(fitPlan,80);
   }
 
   Object.assign(A, {

@@ -1,60 +1,71 @@
 # Atelier Plan
 
-The 3D workspace now uses a locally vendored WebGL renderer with physically based materials, environment reflections, soft shadows, ACES tone mapping, operable openings, detailed procedural furniture, and orbit/pan/zoom controls. It works without a CDN; Three.js remains under its bundled MIT license in `vendor/THREE-LICENSE.txt`.
-
-The project inspector includes live solar controls for azimuth, altitude, and intensity, plus morning/noon/evening presets. Light direction and shadow length update immediately in the 3D view.
-
-The circulation library now includes parametric straight, L-shaped, and U-shaped stairs. L/U stairs expose overall dimensions, clear flight width, landing depth, floor-to-floor height, and riser count. Legacy spiral-stair objects migrate to an L-shaped stair when an older JSON project is opened.
-
-Fresh projects open with an exact 65 × 35 ft reference-inspired courtyard house using feet and inches. The 65 ft north edge and 35 ft west edge are open frontages; south and east are closed. Three bedrooms, paired wet rooms, a planted court, living room, kitchen/dining, garage, garden, car, operable openings, and an L stair are included. Existing locally saved work is preserved; use **Load 65 × 35 ft sample** in Project settings when you want to replace it deliberately.
-
-The Project inspector now includes a **Climate & Vastu** advisory. The Delhi hot semi-arid preset calls out planted-courtyard cooling, cross-ventilation, west solar shading, and a cool roof. Vastu guidance highlights north/west entry, a south-east kitchen, a south-west retreat, a central court, and west/north-west wet rooms; it is intentionally labeled as design guidance rather than statutory compliance.
-
-Sun direction uses the architectural convention `0° = north`, `90° = east`, `180° = south`, `270° = west`. Solar altitude is the sun’s height above the horizon, not a north/south direction. For a northern-hemisphere noon study, use an azimuth near `180°` (due south), then adjust for time of day and date.
-
-See `DIMENSION_AND_LAYOUT_REVIEW.md` for the complete 49-object measurement audit and three-pass layout critic score.
-
-See `REALISM_REVIEW.md` for the three-pass critic score and the remaining boundary between this procedural browser preview and an authored Blender/Unreal visualization pipeline.
-
-Atelier Plan is a dependency-free, offline-friendly floor-planning web app. It runs entirely in the browser and stores project data locally.
+Atelier Plan is an offline browser application for residential concept planning. It combines a 2D editor, a locally vendored Three.js renderer, a 117-item catalog, plumbing and electrical layouts, walkthroughs, solar studies, and preliminary structural estimates. No build step or external service is required.
 
 ## Run
 
-Open `index.html` directly in a modern browser, or serve the folder locally:
+Open `index.html` directly, or run `node server.cjs` from this directory and visit http://127.0.0.1:4173. The server binds only to the local computer.
 
-```bash
-python3 -m http.server 4173 --directory .
-```
+## Editing
 
-Then visit `http://localhost:4173`.
+Select and drag objects; use corner handles to resize and the round handle to rotate. Shift/Ctrl/Cmd-click adds furniture to a group. The inspector accepts feet/inches (including `6″` and `5′ 4″`), decimal units, and negative coordinates. Invalid measurements are rejected.
 
-## What's new in this build
+Wall endpoints that already meet stay joined when edited. Doors and windows keep a host-wall relationship and follow wall moves and rotations. Openings wider than a wall do not attach to it. Dimensions placed within 30 cm of an entity corner retain a reference and follow geometry edits.
 
-- **Richer 3D realism** — procedural textures now carry generated normal maps (wood grain, stone, weave, concrete relief), floor-standing objects get soft contact shadows for better grounding, and the sky, exposure, and light colour shift through a full day/night cycle driven by the solar model (warm golden-hour sun, dim blue nights where lamps and fixtures take over).
-- **First-person walk-through** — a Walk-through button in the 3D camera panel drops you inside the home at eye height. Drag to look, W/A/S/D or arrow keys to move, Shift to run, Esc to exit.
-- **~25 new objects** — curtains, roller blinds, accent armchair, ottoman, console table, bookshelf, framed wall art, fireplace, upright piano, chest of drawers, king bed, wall cabinet, range hood, pendant light, chandelier, wall sconce, recessed downlight, table lamp, outdoor sofa, patio umbrella, pergola, swimming pool, fence, gate and BBQ grill — each with a 2D symbol and detailed 3D geometry. Lights actually illuminate the scene.
-- **Smart editing** — drag an object and magenta guides snap it to nearby edges, centres and wall faces; live green dimension lines show clearances to the surrounding room walls; right-click any object for duplicate, rotate ±90°, align-to-wall, bring-to-front / send-to-back, copy and delete.
-- **Real catalog thumbnails** — every library card previews the object's actual plan symbol instead of a generic icon.
+In **Properties → Plan tools & drawing export**, choose **Trace closed rooms from walls** to create polygonal floors from closed wall faces. Generated room boundaries follow their walls; edit those walls to reshape the room. Existing free-standing room rectangles remain editable. Room areas are measured to wall centerlines.
 
-## Included
+Undo/redo supports geometry and project settings. A continuous slider gesture uses one undo action. Escape or a canceled pointer gesture restores the previous plan.
 
-- Room, wall, dimension, select, move, and pan tools
-- Multi-select with Shift/Cmd/Ctrl-click or drag an empty canvas to marquee-select objects; drag the group to move it, use the round group handle to rotate it, and use arrow keys to nudge the whole selection
-- 48-item architectural library spanning openings, living, bedroom, kitchen, bathroom, appliances, garage, garden, and decor
-- Wall-snapping doors and windows with editable swing, sill, elevation, and opening size
-- Continuous door opening, semi-open presets, hinge reversal, sliding/garage opening states, and per-object transparency
-- Editable position, size, height, rotation, thickness, elevation, material, colour, and opacity
-- Interactive generated 3D model with orbit, viewing-angle, zoom, walls, floors, openings, furniture, open-tread L/U stairs, thin guard rails, and optional under-stair storage
-- Shared 2D/3D rotation basis so object facing and clockwise L/U stair handedness stay consistent between views
-- Centimetres, metres, feet/inches, and inches, with object dimensions, footprint areas, room areas, catalog cards, elevations, and nudge labels converted to the active unit; feet fields use architectural feet–inches notation (for example `5′ 4″`) rather than decimal feet
-- Snap grid, zoom, fit-to-plan, north orientation, undo, and redo
-- Multiple floor levels
-- Automatic browser-local saving and restore
-- Portable JSON import and export
-- Placement repair keeps freestanding objects inside room envelopes and moves tree/stair collisions into the planted court
+Shortcuts: V select, R room, W wall, T roof, D dimension, H pan, P column, B beam. Ctrl/Cmd+C copies, V pastes, D duplicates, Z undoes, Shift+Z redoes. Delete removes the selected entity. Arrow keys nudge.
 
-Keyboard shortcuts: `V` select, `R` room, `W` wall, `D` dimension, `H` pan, `Cmd/Ctrl+C` copy, `Cmd/Ctrl+V` paste, `Cmd/Ctrl+D` duplicate, `Delete` remove, arrow keys nudge (Shift = larger step), and `Cmd/Ctrl+Z` undo. In Select mode, drag rooms/objects to move them; Shift/Cmd/Ctrl-click adds or removes objects; drag empty canvas to draw a selection rectangle; use Alt/Option-drag over a room to marquee-select through floor space. Selected objects expose corner resize handles and a round rotation handle. The canvas grid legend shows the current unit plus minor/major spacing.
+## Plumbing and electrical layouts
 
-The [three-loop quality review](QUALITY_REVIEW.md) records the usability rubric, changes, final score, and professional limitations.
+The Plumbing category includes cold/hot water, waste, soil/vent and roof rainwater pipes, taps, isolation valves, floor/roof drains, cleanouts and a drain sink. Electrical includes conduit, wiring runs, power sockets, switch points, junction boxes, ceiling light points and data points.
 
-The [object usability review](OBJECT_USABILITY_REVIEW.md) covers direct scaling, object detail, clearance checks, and layout-assistance improvements.
+Add a pipe or wiring run, then choose **Draw route on plan** in its inspector. Click route corners, change the drawing elevation for wall risers, then choose Finish or press Enter. Escape or Cancel discards the draft. A dotted preview shows the vertices as you draw. Installation surface presets set the base elevation for floor, wall or roof; adjust Elevation to match your building.
+
+The vertex editor accepts one `X, Y, elevation` row per point, explicitly in centimetres relative to the active floor. It supports bends, vertical runs and sloping drains. Diameter uses the active measurement unit; route length includes vertical distances. Routes can be moved, resized, rotated, duplicated, undone and saved in JSON. They appear as colored paths in plan/SVG/PDF and tubes in 3D. Connection fixtures have editable elevations and orientation. Circuit/line labels identify runs and points.
+
+These objects document layout geometry. They do not calculate hydraulic flow, cable capacity, electrical protection or automatic network connectivity.
+
+## Projects and recovery
+
+**Projects** lists named browser-local projects, recent saves, duplication, blank-project creation, and five prior recovery snapshots per project. Archive/restore is reversible. On smaller screens, Projects and the searchable **Objects** list are in **More options**.
+
+Autosave retains the existing `atelier-plan-project` storage key. JSON import validates the entire project before replacing the working plan. Imports are limited to 20 MB, 100 floors, and 20,000 entities. Unknown future versions, malformed arrays, invalid geometry, and duplicate identifiers are rejected.
+
+Browser storage has a quota and remains local to the browser and origin. Export JSON for portable backups. The project library and recovery history also use browser storage.
+
+## Floors and 3D
+
+Add a floor from Levels or the + floor button. Enter its elevation and optionally copy the current floor. Copies get independent IDs and retain internal wall/opening/dimension references.
+
+The 3D floor display control switches between the active floor and a stacked view of all floors at their elevations. Walkthrough eye height follows the active floor. Shift-drag editing is available in the active-floor view.
+
+The renderer reuses unchanged scene groups. Moving furniture updates its transform; camera and selection changes do not recreate furniture geometry. Structural analysis is cached until its inputs change. Previously saved projects with intentionally cleared framing remain clear after reopening.
+
+## Drawing export
+
+Choose a scale of 1:50, 1:100, or 1:200, then export SVG or PDF. Drawings include room labels/areas, furniture footprints, structural members, dimensions, a north arrow, and a title block. SVG is vector artwork. PDF embeds a high-resolution rendered drawing with a physical page size that preserves the selected scale. Print at **100% / actual size**, using paper large enough for the drawing.
+
+Print drawing also uses the browser's native print workflow. Exports are concept drawings rather than construction documents.
+
+## Structural estimates
+
+The column check reports uncapped utilization and marks modeled overload as a failure. Material grades are read from their fields. Longitudinal steel area uses the first bar count/diameter in the reinforcement text; unrecognized text uses a disclosed 1.5% assumption.
+
+The model uses assumed residential slab, finish, live, and approximate wall loads. It does not solve building-frame moments, cumulative floor loads, wind/seismic actions, or foundation design. Assumptions are visible in the inspector and report. Results describe modeled checks, not structural certification.
+
+## Accessibility
+
+The searchable Objects list supports keyboard selection of rooms, walls, furniture, columns, beams, and dimensions. Inspector labels are associated with fields. Catalog cards and switches are keyboard operable. Dialogs manage focus, trap Tab, close with Escape, and return focus to their opener. Save/toast status is announced.
+
+## Validate
+
+Run `node tests/regression.cjs` for model and geometry checks plus script parsing.
+
+With the server running, open `tests/browser.html` and select **Run browser checks**. It exercises the actual app in an iframe with separate test storage, including imports, undo, measurements, cancellation, hosted openings, rooms, floor copying, recovery, PDF/SVG output, keyboard access, and incremental 3D updates.
+
+`tests/responsive.html` provides 1440 × 900 desktop, 820 × 900 tablet, and 390 × 844 mobile previews.
+
+See [INDEX.md](INDEX.md) for the module map and [PROJECT_SPEC.md](PROJECT_SPEC.md) for the current design boundaries. Three.js is covered by [vendor/THREE-LICENSE.txt](vendor/THREE-LICENSE.txt).

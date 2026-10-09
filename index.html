@@ -167,10 +167,10 @@
       </div>
 
       <div class="view-switch" aria-label="View mode">
-        <button class="active" data-view="plan" title="2D Floor Plan"><svg class="icon">
+        <button class="active" data-view="plan" title="2D Floor Plan" aria-label="Plan"><svg class="icon">
             <use href="#i-plan" />
           </svg><span>Plan</span></button>
-        <button data-view="3d" title="3D Realistic View"><svg class="icon">
+        <button data-view="3d" title="3D Realistic View" aria-label="3D View"><svg class="icon">
             <use href="#i-cube" />
           </svg><span>3D View</span></button>
       </div>
@@ -188,6 +188,8 @@
       </div>
 
       <div class="top-actions">
+        <button class="button desktop-only" id="projectsBtn" title="Projects and recovery">Projects</button>
+        <button class="button desktop-only" id="objectsBtn" title="Find and select objects">Objects</button>
         <button class="icon-button" id="undoBtn" title="Undo (Ctrl+Z)"><svg class="icon">
             <use href="#i-undo" />
           </svg><span class="optional">Undo</span></button>
@@ -200,7 +202,7 @@
         <button class="button desktop-only" id="exportBtn" title="Export JSON"><svg class="icon">
             <use href="#i-download" />
           </svg><span class="optional">Export JSON</span></button>
-        <button class="button primary" id="saveBtn" title="Save changes"><svg class="icon">
+        <button class="button primary" id="saveBtn" title="Save changes" aria-label="Save"><svg class="icon">
             <use href="#i-save" />
           </svg><span>Save</span></button>
         <button class="icon-button mobile-menu-btn" id="mobileMenuBtn" title="More options"
@@ -212,6 +214,8 @@
 
       <!-- Mobile dropdown / popover menu -->
       <div class="mobile-menu-popover" id="mobileMenuPopover">
+        <button class="menu-item" id="menuProjects">Projects & recovery</button>
+        <button class="menu-item" id="menuObjects">Find plan objects</button>
         <button class="menu-item" id="menuImport"><svg class="icon">
             <use href="#i-upload" />
           </svg><span>Import JSON</span></button>
@@ -285,6 +289,7 @@
           <button class="cat-pill" data-cat="pooja">Pooja &amp; Indian</button>
           <button class="cat-pill" data-cat="appliances">Appliances</button>
           <button class="cat-pill" data-cat="electrical">Electrical</button>
+          <button class="cat-pill" data-cat="plumbing">Plumbing</button>
           <button class="cat-pill" data-cat="garage">Garage</button>
           <button class="cat-pill" data-cat="outdoor">Outdoor</button>
           <button class="cat-pill" data-cat="decor">Decor</button>
@@ -300,6 +305,7 @@
             <option value="pooja">Pooja & Indian home</option>
             <option value="appliances">Appliances & utility</option>
             <option value="electrical">Electrical & lighting</option>
+            <option value="plumbing">Plumbing & drainage</option>
             <option value="garage">Garage & parking</option>
             <option value="outdoor">Garden & outdoor</option>
             <option value="decor">Decor & circulation</option>
@@ -368,6 +374,7 @@
               <use href="#i-close" />
             </svg></button>
         </div>
+        <div class="planning-tools" id="planningTools"><details><summary>Plan tools & drawing export</summary><button class="button" id="traceRoomsBtn">Trace closed rooms from walls</button><label for="floorViewMode">3D floor display</label><select id="floorViewMode"><option value="active">Active floor</option><option value="all">Stack all floors at their elevations</option></select><label for="drawingScale">Drawing scale</label><select id="drawingScale"><option value="50">1:50</option><option value="100" selected>1:100</option><option value="200">1:200</option></select><div class="quick-actions"><button id="exportSvgBtn">Export SVG</button><button id="exportPdfBtn">Export PDF</button><button id="printPlanBtn">Print drawing</button></div><p>Print at 100% size to preserve the selected scale. Traced rooms follow wall boundaries.</p></details></div>
         <div class="inspector-body" id="inspectorBody"></div>
       </aside>
     </section>
@@ -438,6 +445,7 @@
           </svg></button>
       </div>
       <div class="floor-list-modal" id="floorListModal"></div>
+      <label><input type="checkbox" id="copyFloorContents"> Copy rooms, walls, and objects from current floor</label>
       <div class="modal-divider"></div>
       <h3 style="margin:12px 0 6px;font-size:14px;font-weight:600">Add a new floor</h3>
       <p style="margin:0 0 14px">Set elevation relative to ground level.</p>
@@ -600,7 +608,10 @@
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="modal-backdrop" id="projectLibraryModal"><div class="modal"><div class="modal-header"><h2>Projects & recovery</h2><button class="button" data-close="projectLibraryModal">Close</button></div><button class="button primary" id="newProjectBtn">New blank project</button><div id="projectLibraryBody"></div></div></div>
+  <div class="modal-backdrop" id="objectsModal"><div class="modal"><div class="modal-header"><h2>Objects on this floor</h2><button class="button" data-close="objectsModal">Close</button></div><input id="objectSearch" aria-label="Search plan objects" placeholder="Search rooms, walls, furniture…"><div id="objectList"></div></div></div>
+  <div id="drawingPrint"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 
   <!-- Layout data -->
@@ -610,7 +621,9 @@
   <script src="js/utilities.js"></script>
   <script src="js/constants.js"></script>
   <script src="js/furniture-catalog.js"></script>
+  <script src="js/services.js"></script>
   <script src="js/project-model.js"></script>
+  <script src="js/project-validation.js"></script>
   <script src="js/app-state.js"></script>
   <script src="js/structural-analysis.js"></script>
   <script src="js/canvas-drawing.js"></script>
@@ -620,6 +633,11 @@
   <script src="js/object-operations.js"></script>
   <script src="js/persistence.js"></script>
   <script src="js/ui-wiring.js"></script>
+  <script src="js/editing-support.js"></script>
+  <script src="js/architecture.js"></script>
+  <script src="js/project-library.js"></script>
+  <script src="js/drawing-export.js"></script>
+  <script src="js/accessibility.js"></script>
   <script src="js/app.js"></script>
 
   <!-- 3D renderer (Three.js) -->

@@ -16,7 +16,7 @@
   // ── Field builders ───────────────────────────────────────────
   function fieldNumber(label,key,value,step=1) {
     const project=S().project;
-    const lengthField=['w','d','x','y','x1','y1','x2','y2','height','elevation','ceilingHeight','thickness','clearance','stairWidth','landingDepth','landingWidth','landingLength'].includes(key);
+    const lengthField=A.lengthKeys.has(key);
     const inputType=project.unit==='ft'&&lengthField?'text':'number';
     const suffix=lengthField?A.unitLabel():key.toLowerCase().includes('step')?'steps':'';
     return `<div class="field"><label>${label}</label><div class="input-unit"><input type="${inputType}" data-key="${key}" value="${lengthField?A.displayValue(value):value}" step="${step}" inputmode="decimal"><span>${suffix}</span></div></div>`;
@@ -197,7 +197,8 @@
     const project = S().project;
     return `
       <div class="section">
-        <div class="section-title">Civil Engineering <span>${summary.status === 'pass' ? '✓ Structurally Sound' : summary.status === 'warn' ? '⚠ Advisory' : '✕ Action Required'}</span></div>
+        <div class="section-title">Civil Engineering <span>${summary.status === 'pass' ? '✓ Modeled checks passed' : summary.status === 'warn' ? '⚠ Advisory' : '✕ Action Required'}</span></div>
+        <p style="font-size:10px;color:var(--muted);line-height:1.5">Preliminary single-floor estimates with assumed residential loads. Column reinforcement uses the entered bar count and diameter, or 1.5% if unrecognized. Frame moments, cumulative floor loads, wind and seismic actions are not modeled.</p>
         <div class="quick-actions" style="margin-bottom:6px">
           <button id="classifyBeamsBtn" title="Auto-detect Primary (PB), Secondary (SB), and Cantilever (CB) beams">🔍 Detect PB / SB Beams</button>
           <button id="autoReducePillarsBtn" title="Safely eliminate closely spaced redundant pillars and merge continuous beams" style="color:#be123c;font-weight:600">⚡ Auto-Reduce Pillars</button>
@@ -576,18 +577,18 @@
       A.$$('[data-sun]',body).forEach(input=>input.oninput=e=>{const key=e.target.dataset.sun;project.sun[key]=Number(e.target.value);A.syncSolarPosition();updateSunReadouts();A.queueSave()});
       A.$$('[data-sun-location]',body).forEach(input=>input.oninput=e=>{const key=e.target.dataset.sunLocation;project.sun.location[key]=key==='name'?e.target.value:Number(e.target.value);if(key!=='name')A.syncSolarPosition();updateSunReadouts();A.queueSave()});
       if(A.$('#wallMode')){A.$('#wallMode').value=project.camera.wallMode;A.$('#wallMode').onchange=e=>{project.camera.wallMode=e.target.value;window.atelier3D?.requestRebuild();A.queueSave()};A.$('#roofMode').value=project.camera.roofMode;A.$('#roofMode').onchange=e=>{project.camera.roofMode=e.target.value;window.atelier3D?.requestRebuild();A.queueSave()};A.$$('[data-preset]',body).forEach(b=>b.onclick=()=>{if(window.atelier3D?.isWalking?.())window.atelier3D.setWalk(false);setCameraPreset(b.dataset.preset);renderInspector()});const walkBtn=A.$('#walkToggle');if(walkBtn)walkBtn.onclick=()=>{const on=!window.atelier3D?.isWalking?.();window.atelier3D?.setWalk(on);renderInspector();A.showToast(on?'Walk-through — drag to look, WASD to move':'Orbit view restored')};}
-      A.$('[data-key="north"]',body).onchange=e=>{project.north=Number(e.target.value)||0;A.$('#compass').style.setProperty('--north',`${project.north}deg`);A.queueSave()};return;
+      A.$('[data-key="north"]',body).onchange=e=>{project.north=Number(e.target.value)||0;A.$('#compass').style.setProperty('--north',`${project.north}deg`);A.draw();A.queueSave()};return;
     }
 
     // ── Single entity selected ─────────────────────────────────
     if(o.type === 'column'){
-      A.$('#inspectorTitle').textContent = `Pillar ${o.tag || 'C'}`;
+      A.$('#inspectorTitle').textContent = `Pillar ${A.escapeHtml(o.tag || 'C')}`;
       const analysis = A.analyzeStructure ? A.analyzeStructure() : null;
       const colData = analysis?.columnDetails?.find(c => c.id === o.id);
 
       let html = `
         <div class="section">
-          <div class="section-title">Column Identity <span>${o.tag || 'C'}</span></div>
+          <div class="section-title">Column Identity <span>${A.escapeHtml(o.tag || 'C')}</span></div>
           <div class="field"><label>Column Tag</label><input type="text" data-key="tag" value="${A.escapeHtml(o.tag || '')}"></div>
           <div class="field-row">
             ${fieldNumber('Width (b)', 'w', o.w || 23, 1)}
@@ -644,14 +645,14 @@
     }
 
     if(o.type === 'beam'){
-      A.$('#inspectorTitle').textContent = `Beam ${o.tag || 'B'}`;
+      A.$('#inspectorTitle').textContent = `Beam ${A.escapeHtml(o.tag || 'B')}`;
       const analysis = A.analyzeStructure ? A.analyzeStructure() : null;
       const beamData = analysis?.beamDetails?.find(b => b.id === o.id);
       const spanLen = Math.hypot(o.x2 - o.x1, o.y2 - o.y1);
 
       let html = `
         <div class="section">
-          <div class="section-title">Beam Identity <span>${o.tag || 'B'}</span></div>
+          <div class="section-title">Beam Identity <span>${A.escapeHtml(o.tag || 'B')}</span></div>
           <div class="field"><label>Beam Tag</label><input type="text" data-key="tag" value="${A.escapeHtml(o.tag || '')}"></div>
           <div class="field"><label>Span Length</label><input type="text" disabled value="${A.formatLength(spanLen)} (${(spanLen/100).toFixed(2)} m)"></div>
           <div class="field-row">
@@ -697,12 +698,12 @@
 
     A.$('#inspectorTitle').textContent=o.type==='room'?'Room':o.type==='wall'?'Wall':o.type==='dimension'?'Dimension':o.name;
     const shape=o.shape||o.type,isOpening=shape==='door'||shape==='window',isPowered=A.POWERED_TYPES.has(shape);
-    let html=`<div class="section"><div class="section-title">Identity <span>${o.type}</span></div>${o.name?`<div class="field"><label>Name</label><input type="text" data-key="name" value="${A.escapeHtml(o.name)}"></div>`:''}`;
+    let html=`<div class="section"><div class="section-title">Identity <span>${A.escapeHtml(o.type)}</span></div>${o.name?`<div class="field"><label>Name</label><input type="text" data-key="name" value="${A.escapeHtml(o.name)}"></div>`:''}`;
     if(o.type==='room'||A.floor().items.includes(o)){
       html+=`<div class="field-row">${fieldNumber('Width','w',o.w,.1)}${fieldNumber(o.type==='room'?'Depth':'Length','d',o.d,.1)}</div><div class="field-row">${fieldNumber('Position X','x',o.x,.1)}${fieldNumber('Position Y','y',o.y,.1)}</div>`;
       if(o.type!=='room')html+=`<div class="field"><label>Orientation <span>${o.rotation||0}°</span></label><input type="range" data-key="rotation" min="0" max="359" value="${o.rotation||0}"></div>`;
-      if(o.type==='room')html+=`${fieldNumber('Ceiling height','ceilingHeight',o.ceilingHeight||280,.1)}<div class="field"><label>Floor finish</label><select data-key="floorMaterial">${['Wood','Tile','Stone','Concrete','Carpet'].map(m=>`<option ${m===(o.floorMaterial||'Wood')?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Area</label><input type="text" disabled value="${A.formatArea(o.w*o.d)}"></div>`;
-      else html+=`<div class="field"><label>Footprint area</label><input type="text" disabled value="${A.formatArea(o.w*o.d)}"></div><div class="field-row">${fieldNumber('Object height','height',o.height||80,.1)}${fieldNumber(isOpening&&shape==='window'?'Sill height':'Elevation','elevation',o.elevation||0,.1)}</div><div class="field-row">${fieldNumber('Clearance zone','clearance',o.clearance||0,.1)}<div class="field"><label>Uniform scale</label><div class="input-unit"><input type="number" id="uniformScale" value="100" min="10" max="500" step="5"><span>%</span></div></div></div><div class="toggle-row"><span>Lock proportions while resizing</span><div class="switch ${o.lockAspect?'on':''}" id="aspectToggle"></div></div>`;
+      if(o.type==='room')html+=`${fieldNumber('Ceiling height','ceilingHeight',o.ceilingHeight||280,.1)}<div class="field"><label>Floor finish</label><select data-key="floorMaterial">${['Wood','Tile','Stone','Concrete','Carpet'].map(m=>`<option ${m===(o.floorMaterial||'Wood')?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Area</label><input type="text" disabled value="${A.formatArea(o.type==='room'?A.roomArea(o):o.w*o.d)}"></div>`;
+      else html+=`<div class="field"><label>Footprint area</label><input type="text" disabled value="${A.formatArea(o.type==='room'?A.roomArea(o):o.w*o.d)}"></div><div class="field-row">${fieldNumber('Object height','height',o.height||80,.1)}${fieldNumber(isOpening&&shape==='window'?'Sill height':'Elevation','elevation',o.elevation||0,.1)}</div><div class="field-row">${fieldNumber('Clearance zone','clearance',o.clearance||0,.1)}<div class="field"><label>Uniform scale</label><div class="input-unit"><input type="number" id="uniformScale" value="100" min="10" max="500" step="5"><span>%</span></div></div></div><div class="toggle-row"><span>Lock proportions while resizing</span><div class="switch ${o.lockAspect?'on':''}" id="aspectToggle"></div></div>`;
       if(shape==='door'){const percentDoor=o.type==='sliding-door'||o.type==='garage-door';html+=`<div class="field"><label>${percentDoor?'Open amount':'Door opening'} <span>${o.openAngle??30}${percentDoor?'%':'°'}</span></label><input type="range" data-key="openAngle" min="0" max="${percentDoor?100:120}" value="${o.openAngle??30}"></div>${!percentDoor?`<div class="preset-row"><button data-door-angle="0">Closed</button><button data-door-angle="35">Semi-open</button><button data-door-angle="90">Open</button></div><div class="field"><label>Hinge side</label><select data-key="hingeSide"><option value="left" ${o.hingeSide!=='right'?'selected':''}>Left hinge</option><option value="right" ${o.hingeSide==='right'?'selected':''}>Right hinge</option></select></div><div class="toggle-row"><span>Reverse swing direction</span><div class="switch ${(o.swingSide??1)<0?'on':''}" id="swingSideToggle"></div></div>`:''}`;}
       if(['stairs','l-stairs','u-stairs'].includes(shape)){const split=shape!=='stairs',lower=o.lowerStepCount||Math.ceil((o.stepCount||16)/2),upper=o.upperStepCount||Math.max(1,(o.stepCount||16)-lower);html+=`<div class="section-title" style="margin-top:15px">Stair geometry</div><div class="field-row">${fieldNumber('Clear width','stairWidth',o.stairWidth||Math.min(100,o.w),.1)}${fieldNumber('Landing width','landingWidth',o.landingWidth||(shape==='u-stairs'?o.w:o.stairWidth),.1)}</div><div class="field-row">${fieldNumber('Landing length','landingLength',o.landingLength||o.landingDepth||100,.1)}${split?fieldNumber('Lower flight steps','lowerStepCount',lower,1):fieldNumber('Total risers','stepCount',o.stepCount||16,1)}</div>${split?fieldNumber('Upper flight steps','upperStepCount',upper,1):''}<div class="toggle-row"><span>Under-stair storage</span><div class="switch ${o.underStorage!==false?'on':''}" id="underStorageToggle"></div></div>`;}
       if(shape==='ceiling-fan')html+=`<div class="section-title" style="margin-top:15px">Fan geometry</div>${fieldNumber('Blade count','bladeCount',o.bladeCount||4,1)}`;
@@ -714,8 +715,9 @@
       const length=Math.hypot(o.x2-o.x1,o.y2-o.y1);html+=`<div class="field"><label>Measured length</label><input type="text" disabled value="${A.formatLength(length)}"></div>`;
       if(o.type==='wall')html+=`<div class="field-row">${fieldNumber('Wall thickness','thickness',o.thickness,.1)}${fieldNumber('Wall height','height',o.height||280,.1)}</div><p style="margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.4">On the plan, drag either endpoint to resize. Drag the round ↻ handle to rotate.</p>`;
     }
-    html+=`</div>${A.floor().items.includes(o)?objectLayoutCheckHtml(o):''}<div class="section"><div class="section-title">Material & finish</div>${A.floor().items.includes(o)?`<div class="field"><label>Material</label><select data-key="material">${['Wood','Fabric','Leather','Stone','Metal','Glass','Mirror','Ceramic','Natural','Plastic','Concrete'].map(m=>`<option ${m===(o.material||'Wood')?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Transparency <span>${Math.round(o.transparency||0)}%</span></label><input type="range" data-key="transparency" min="0" max="90" value="${o.transparency||0}"></div>`:''}<div class="field"><label>Surface colour</label><div class="color-row"><input type="color" data-key="color" value="${o.color||'#65736c'}"><span>${o.color||'#65736c'}</span></div></div>${o.type==='room'?`<div class="field"><label>Floor opacity <span>${Math.round((o.opacity??1)*100)}%</span></label><input type="range" data-key="opacity" min="0.25" max="1" step="0.05" value="${o.opacity??1}"></div>`:''}</div><div class="section"><div class="quick-actions"><button id="duplicateSelected">Duplicate</button>${A.floor().items.includes(o)?'<button id="rotateSelected">Rotate 90°</button><button id="alignWall">Align wall</button>':`<button id="nudgeSelected">Nudge 20 cm</button><button disabled>—</button>`}</div><button class="delete-button" id="deleteSelected">Delete ${o.type}</button></div>`;
+    html+=`</div>${A.floor().items.includes(o)&&!o.system?objectLayoutCheckHtml(o):''}<div class="section"><div class="section-title">Material & finish</div>${A.floor().items.includes(o)?`<div class="field"><label>Material</label><select data-key="material">${['Wood','Fabric','Leather','Stone','Metal','Glass','Mirror','Ceramic','Natural','Plastic','Concrete'].map(m=>`<option ${m===(o.material||'Wood')?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Transparency <span>${Math.round(o.transparency||0)}%</span></label><input type="range" data-key="transparency" min="0" max="90" value="${o.transparency||0}"></div>`:''}<div class="field"><label>Surface colour</label><div class="color-row"><input type="color" data-key="color" value="${o.color||'#65736c'}"><span>${o.color||'#65736c'}</span></div></div>${o.type==='room'?`<div class="field"><label>Floor opacity <span>${Math.round((o.opacity??1)*100)}%</span></label><input type="range" data-key="opacity" min="0.25" max="1" step="0.05" value="${o.opacity??1}"></div>`:''}</div><div class="section"><div class="quick-actions"><button id="duplicateSelected">Duplicate</button>${A.floor().items.includes(o)?'<button id="rotateSelected">Rotate 90°</button><button id="alignWall">Align wall</button>':`<button id="nudgeSelected">Nudge 20 cm</button><button disabled>—</button>`}</div><button class="delete-button" id="deleteSelected">Delete ${A.escapeHtml(o.type)}</button></div>`;
     body.innerHTML=html;
+    A.renderServiceInspector?.(o,body);
 
     function wireStructuralItemHandlers(item) {
       A.$$('[data-key]', body).forEach(input => input.addEventListener(input.type === 'color' ? 'input' : 'change', e => {
@@ -724,7 +726,7 @@
         if (['tag', 'name', 'shape', 'material', 'steelGrade', 'rebarSpec', 'beamType'].includes(key)) {
           item[key] = e.target.value;
         } else {
-          item[key] = Number(e.target.value) || A.toCm(e.target.value);
+          item[key] = key==='color' ? e.target.value : A.lengthKeys.has(key) ? A.toCm(e.target.value) : Number(e.target.value);
         }
         A.queueSave();
         A.draw();

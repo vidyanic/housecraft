@@ -12,7 +12,7 @@
     const A = window.Atelier;
     const s = A?.state;
     // Auto-frame initial layout if no columns exist yet
-    if (s && s.project && typeof A.autoGenerateFraming === 'function') {
+    if (s && s.isFreshProject && s.project && typeof A.autoGenerateFraming === 'function') {
       s.project.floors.forEach(f => {
         if ((!f.columns || f.columns.length === 0) && f.walls && f.walls.length > 0) {
           A.autoGenerateFraming(f, s.project);

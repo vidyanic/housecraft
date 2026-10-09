@@ -13,8 +13,16 @@
   const materialCache = new Map();
   let visible = false;
   let rebuildQueued = false;
+  const sceneRecords = new Map();
+  const renderStats = { updates:0, geometryBuilds:0, transformUpdates:0 };
+  let selectionHelper=null, selectionTarget=null;
+  let lastSunSignature='';
+  const entityNode=id=>{let found=null;design.traverse(node=>{if(node.userData?.entityId===id)found=node;});return found;};
+  const sceneSignature=value=>JSON.stringify(value,(key,v)=>['status','utilization','colorCode','redundant','redundancyReason','isRedundant'].includes(key)?undefined:v);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }); }
+  catch(error){if(loading)loading.textContent='WebGL unavailable — continue in Plan view';console.warn('Atelier 3D unavailable:',error.message);return;}
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setClearColor(0xdde4e1, 1);
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -99,7 +107,10 @@
 
   function updateSun(settings) {
     const state = settings || { azimuth: 135, altitude: 38, intensity: 3.6 };
-    const azimuth = (Number(state.azimuth) || 0) * Math.PI / 180;
+    const north=window.atelierBridge?.project.north||0;
+    const signature=JSON.stringify([state,north,controls.target.x,controls.target.y,controls.target.z]);
+    if(signature===lastSunSignature)return;lastSunSignature=signature;
+    const azimuth = ((Number(state.azimuth) || 0)+north) * Math.PI / 180;
     const altitude = Math.max(2, Math.min(88, Number(state.altitude) || 38)) * Math.PI / 180;
     const radius = 24, horizontal = Math.cos(altitude) * radius;
     // Architectural convention: azimuth is clockwise from plan north.
@@ -107,7 +118,7 @@
     sun.position.set(controls.target.x + Math.sin(azimuth) * horizontal, Math.sin(altitude) * radius, controls.target.z - Math.cos(azimuth) * horizontal);
     const intensity = Math.max(.2, Math.min(6, Number(state.intensity) || 3.6));
     const daylight = Math.max(0, Math.min(1, (intensity - .2) / 5.8));
-    const altDeg = Number(state.solarAltitude ?? state.altitude) || 38;
+    const altDeg = Number(state.solarAltitude ?? state.altitude ?? 38);
     // Stronger, crisper key light with lower ambient/fill gives real
     // directional shading gradients instead of a flat, evenly-lit look.
     sun.intensity = Math.max(2.2, intensity * 1.15);
@@ -1077,8 +1088,19 @@
 
   function buildObject(o) {
     const g = localGroup(o), w = cm(o.w), d = cm(o.d), h = cm(o.height || 80), mat = pbr(o), t = o.shape || o.type;
-    addContactShadow(g, o, w, d);
-    if (t === 'sofa') sofa(g, o, w, d, h, mat);
+    if(!o.system)addContactShadow(g, o, w, d);
+    if(t==='service-route'){
+      const points=window.Atelier.serviceLocalPoints(o).map(p=>new THREE.Vector3(cm(p.x),cm(p.z)+.015,cm(p.y))),radius=cm(o.diameter||2.5)/2;
+      for(let i=1;i<points.length;i++){const delta=points[i].clone().sub(points[i-1]),length=delta.length();if(length<.0001)continue;const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,length,12),mat);mesh.position.copy(points[i]).add(points[i-1]).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());g.add(mesh);}
+      for(const p of points){const joint=new THREE.Mesh(new THREE.SphereGeometry(radius,12,8),mat);joint.position.copy(p);g.add(joint);}
+    }
+    else if(t.startsWith('service-')){
+      if(t==='service-tap'){cylinder(g,.018,.018,h*.7,12,0,h*.35,0,mat);box(g,w*.8,.035,.04,w*.2,h*.7,0,mat);box(g,w*.8,.025,.025,0,h*.85,0,mat);}
+      else if(t==='service-drain'){box(g,w,h*.25,d,0,h*.125,0,mat);for(let i=-2;i<=2;i++)box(g,w*.8,.008,d*.06,0,h*.26,i*d*.16,pbr({material:'Metal',color:'#303c3a'}));}
+      else if(t==='service-valve'){cylinder(g,w*.16,w*.16,h,12,0,h/2,0,mat);const wheel=new THREE.Mesh(new THREE.TorusGeometry(w*.35,w*.06,8,20),mat);wheel.rotation.x=Math.PI/2;wheel.position.y=h;g.add(wheel);}
+      else {box(g,w,h,d,0,h/2,0,mat);for(const x of [-w*.2,w*.2])box(g,w*.1,h*.18,.01,x,h*.55,d*.51,pbr({material:'Plastic',color:'#33423c'}));}
+    }
+    else if (t === 'sofa') sofa(g, o, w, d, h, mat);
     else if (t === 'chair') chair(g, o, w, d, h, mat);
     else if (t === 'bed') bed(g, o, w, d, h, mat);
     else if (t === 'table' || t === 'round-table') table(g, o, w, d, h, mat, t === 'round-table');
@@ -1274,8 +1296,11 @@
     const rough = finish === 'tile' ? .26 : finish === 'stone' ? .5 : finish === 'concrete' ? .82 : finish === 'carpet' ? .93 : .5;
     const mat = new THREE.MeshStandardMaterial({ color: floorTint, map: tex, roughness: rough, metalness: 0, envMapIntensity: finish === 'carpet' ? .3 : .75, emissive: floorTint.clone(), emissiveIntensity: .025, transparent: opacity < .999, opacity, depthWrite: opacity > .6 });
     tex.repeat.set(Math.max(1, room.w / (finish === 'wood' ? 100 : 140)), Math.max(1, room.d / (finish === 'wood' ? 100 : 140)));
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(cm(room.w), .055, cm(room.d)), mat);
-    mesh.position.set(cm(room.x + room.w / 2), .018, cm(room.y + room.d / 2)); mesh.receiveShadow = true; mesh.userData.ownsFloorMaterial = true; parent.add(mesh);
+    let geo;
+    if(room.polygon){const shape=new THREE.Shape();room.polygon.forEach((p,i)=>i?shape.lineTo(cm(p.x-room.x-room.w/2),-cm(p.y-room.y-room.d/2)):shape.moveTo(cm(p.x-room.x-room.w/2),-cm(p.y-room.y-room.d/2)));shape.closePath();geo=new THREE.ExtrudeGeometry(shape,{depth:.055,bevelEnabled:false});geo.rotateX(-Math.PI/2);}else geo=new THREE.BoxGeometry(cm(room.w), .055, cm(room.d));
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(cm(room.x + room.w / 2), .018, cm(room.y + room.d / 2)); mesh.receiveShadow = true; mesh.userData.ownsFloorMaterial = true; mesh.userData.entityId=room.id;parent.add(mesh);
+    if(room.polygon)return;
     // Skirting / baseboard around the room perimeter — a small but strong
     // interior-realism cue that grounds the walls to the floor.
     const skb = new THREE.MeshStandardMaterial({ color: new THREE.Color('#dcd6ca'), roughness: .65, metalness: 0 });
@@ -1297,6 +1322,19 @@
       });
     }
   }
+  function disposeNode(child) {
+    child.parent?.remove(child);
+    const shared=new Set(materialCache.values()),disposed=new Set();
+    child.traverse(node=>{
+      node.geometry?.dispose();
+      for(const material of Array.isArray(node.material)?node.material:[node.material]){
+        if(!material||shared.has(material)||disposed.has(material))continue;
+        disposed.add(material);
+        if(node.userData?.ownsFloorMaterial)material.map?.dispose();
+        material.dispose();
+      }
+    });
+  }
 
   function buildColumn3D(col) {
     const group = new THREE.Group();
@@ -1306,7 +1344,7 @@
     const cx = cm(col.x + (col.w || 23) / 2);
     const cz = cm(col.y + (col.d || 30) / 2);
     const mat = pbr({ material: 'concrete', color: col.color || '#9ea29e' });
-    box(group, w, h, d, cx, h / 2, cz, mat);
+    if(col.shape==='circle'){const mesh=cylinder(group,w/2,w/2,h,24,cx,h/2,cz,mat);mesh.scale.z=d/w;}else box(group, w, h, d, cx, h / 2, cz, mat);
     const trimMat = pbr({ material: 'concrete', color: '#8d928e' });
     box(group, w + 0.03, 0.06, d + 0.03, cx, 0.03, cz, trimMat);
     group.userData.entityId = col.id;
@@ -1340,10 +1378,12 @@
 
   function addSelection(floorData) {
     const id = window.atelierBridge && window.atelierBridge.selected;
-    if (!id) return;
-    const target = design.children.find(c => c.userData && c.userData.entityId === id);
+    const target=id?entityNode(id):null;
+    if(target===selectionTarget&&selectionHelper){selectionHelper.update();return;}
+    if(selectionHelper)disposeNode(selectionHelper);
+    selectionHelper=null;selectionTarget=target;
     if (!target) return;
-    const helper = new THREE.BoxHelper(target, 0x29a978); helper.material.depthTest = false; helper.material.transparent = true; helper.material.opacity = .9; helper.renderOrder = 999; design.add(helper);
+    const helper = new THREE.BoxHelper(target, 0x29a978); helper.material.depthTest = false; helper.material.transparent = true; helper.material.opacity = .9; helper.renderOrder = 999; design.add(helper);selectionHelper=helper;
   }
 
   function rebuild() {
@@ -1351,32 +1391,43 @@
     const bridge = window.atelierBridge;
     if (!bridge) return;
     const projectData = bridge.project, floorData = bridge.floor();
-    clearDesign();
-    floorData.rooms.forEach(room => roomFloor(design, room));
-    buildWalls(design, floorData, projectData.camera.wallMode || 'cutaway');
-    floorData.items.forEach(item => {
-      if ((item.shape || item.type) === 'roof' && projectData.camera.roofMode === 'hidden') {
-        design.add(roofShadowOccluder(item));
-      } else design.add(buildObject(item));
-    });
-    if (projectData.showStructure !== false) {
-      (floorData.columns || []).forEach(col => {
-        const c3d = buildColumn3D(col);
-        if (c3d) design.add(c3d);
-      });
-      (floorData.beams || []).forEach(beam => {
-        const b3d = buildBeam3D(beam);
-        if (b3d) design.add(b3d);
-      });
+    renderStats.updates++;
+    const seen=new Set();let geometryChanged=false;
+    function upsert(key,data,make,elevation,transformOnly=false){
+      seen.add(key);
+      const signature=sceneSignature(transformOnly?Object.fromEntries(Object.entries(data).filter(([k])=>!['x','y','rotation','elevation'].includes(k))):data);
+      let record=sceneRecords.get(key);
+      if(!record||record.signature!==signature){
+        if(record)disposeNode(record.group);
+        const group=new THREE.Group();make(group);group.position.y=cm(elevation);
+        design.add(group);record={group,signature};sceneRecords.set(key,record);geometryChanged=true;renderStats.geometryBuilds++;
+      }
+      record.group.position.y=cm(elevation);
+      if(transformOnly){const node=record.group.children[0];if(node){const x=cm(data.x+data.w/2),z=cm(data.y+data.d/2),y=cm(data.elevation||0),rotation=-(data.rotation||0)*Math.PI/180;if(node.position.x!==x||node.position.y!==y||node.position.z!==z||node.rotation.y!==rotation){renderStats.transformUpdates++;geometryChanged=true;}node.position.set(x,y,z);node.rotation.y=rotation;}}
     }
+    const floors=projectData.camera.allFloors?projectData.floors:[floorData];
+    floors.forEach(f=>{
+      const prefix=f.id+':',elevation=f.elevation||0;
+      f.rooms.forEach(room=>upsert(prefix+'room:'+room.id,room,g=>roomFloor(g,room),elevation));
+      upsert(prefix+'walls',{walls:f.walls,openings:f.items.filter(o=>['door','window'].includes(o.shape)),mode:projectData.camera.wallMode},g=>buildWalls(g,f,projectData.camera.wallMode||'cutaway'),elevation);
+      if(!projectData.framingMode)f.items.forEach(item=>{
+        const hiddenRoof=(item.shape||item.type)==='roof'&&projectData.camera.roofMode==='hidden';
+        upsert(prefix+'item:'+item.id,{...item,hiddenRoof},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject(item)),elevation,true);
+      });
+      if(projectData.showStructure!==false){
+        (f.columns||[]).forEach(col=>upsert(prefix+'column:'+col.id,col,g=>g.add(buildColumn3D(col)),elevation));
+        (f.beams||[]).forEach(beam=>upsert(prefix+'beam:'+beam.id,beam,g=>{const node=buildBeam3D(beam);if(node)g.add(node);},elevation));
+      }
+    });
+    for(const [key,record] of sceneRecords)if(!seen.has(key)){disposeNode(record.group);sceneRecords.delete(key);geometryChanged=true;}
     addSelection(floorData);
     const bounds = bridge.planBounds();
     const cx = cm((bounds.minX + bounds.maxX) / 2), cz = cm((bounds.minY + bounds.maxY) / 2);
-    controls.target.set(cx, .72, cz);
+    if(geometryChanged&&!objectDrag)controls.target.set(cx, cm(floorData.elevation||0)+.72, cz);
     sun.target.position.set(cx, 0, cz); scene.add(sun.target);
     updateSun(projectData.sun);
     updateMirrorReflections();
-    renderer.shadowMap.needsUpdate = true;
+    if(geometryChanged)renderer.shadowMap.needsUpdate = true;
     wakeRenderLoop(3);
     if (loading) loading.classList.add('ready');
   }
@@ -1392,7 +1443,7 @@
 
   function setCamera(state) {
     if (!state) return;
-    const theta = (Number(state.yaw) || -38) * Math.PI / 180;
+    const theta = (Number.isFinite(Number(state.yaw))?Number(state.yaw):-38) * Math.PI / 180;
     const phi = (90 - Math.max(12, Math.min(80, Number(state.pitch) || 34))) * Math.PI / 180;
     const zoom = Math.max(.18, Number(state.zoom) || .56);
     const distance = 11 / zoom;
@@ -1413,9 +1464,17 @@
   function resize() {
     const rect = stage.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    const previousAspect=camera.aspect;
     renderer.setSize(rect.width, rect.height, false);
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
+    if(visible&&!walk.active&&previousAspect>0&&Math.abs(previousAspect-camera.aspect)>.01){
+      const factor=previousAspect/camera.aspect;
+      const delta=camera.position.clone().sub(controls.target);
+      delta.setLength(Math.max(controls.minDistance,Math.min(controls.maxDistance,delta.length()*factor)));
+      camera.position.copy(controls.target).add(delta);
+      const project=window.atelierBridge?.project;if(project){project.camera.zoom=Math.max(.18,Math.min(1.4,11/delta.length()));window.atelierBridge.updateCameraUI?.();}
+    }
     wakeRenderLoop(2);
   }
 
@@ -1505,7 +1564,7 @@
     }
 
     // Shift + Left-click: Initiate 3D Object Move
-    if ((e.shiftKey || shiftPressed) && e.button === 0) {
+    if ((e.shiftKey || shiftPressed) && e.button === 0 && !window.atelierBridge?.project.camera.allFloors) {
       updatePointer(e);
       let hit = getRaycastEntity();
       let targetEntity = hit?.entity;
@@ -1515,7 +1574,7 @@
       if (!targetEntity && window.atelierBridge?.selected) {
         targetEntity = window.atelierBridge.findEntity ? window.atelierBridge.findEntity(window.atelierBridge.selected) : (window.atelierBridge?.floor?.()?.items || []).find(i => i.id === window.atelierBridge.selected);
         if (targetEntity) {
-          targetGroup = design.children.find(c => c.userData?.entityId === targetEntity.id);
+          targetGroup = entityNode(targetEntity.id);
         }
       }
 
@@ -1528,7 +1587,7 @@
 
         bridge?.checkpoint?.();
 
-        const elev = cm(targetEntity.elevation || 0);
+        const elev = cm((targetEntity.elevation || 0)+(bridge.floor().elevation||0));
         const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -elev);
         const startPlaneHit = new THREE.Vector3();
         raycaster.ray.intersectPlane(dragPlane, startPlaneHit);
@@ -1650,6 +1709,7 @@
 
   window.addEventListener('pointercancel', () => {
     if (objectDrag) {
+      objectDrag.entity.x=objectDrag.origX;objectDrag.entity.y=objectDrag.origY;requestRebuild();
       controls.enabled = !walk.active;
       objectDrag = null;
     }
@@ -1680,7 +1740,7 @@
     if (walk.active) {
       camera.fov = 58; camera.updateProjectionMatrix();
       const t = controls.target;
-      camera.position.set(t.x, walk.eye, t.z + 2.5); walk.yaw = Math.PI; walk.pitch = -.05; applyWalkLook();
+      camera.position.set(t.x, cm(window.atelierBridge.floor().elevation||0)+walk.eye, t.z + 2.5); walk.yaw = Math.PI; walk.pitch = -.05; applyWalkLook();
       renderer.domElement.style.cursor = 'crosshair';
     } else {
       camera.fov = 39; camera.updateProjectionMatrix(); renderer.domElement.style.cursor = 'default';
@@ -1764,7 +1824,7 @@
           if (walk.keys.KeyS || walk.keys.ArrowDown) camera.position.addScaledVector(fwd, -spd);
           if (walk.keys.KeyA || walk.keys.ArrowLeft) camera.position.addScaledVector(right, -spd);
           if (walk.keys.KeyD || walk.keys.ArrowRight) camera.position.addScaledVector(right, spd);
-          camera.position.y = walk.eye;
+          camera.position.y = cm(window.atelierBridge.floor().elevation||0)+walk.eye;
           applyWalkLook();
         } else {
           clock.getDelta();
@@ -1798,6 +1858,6 @@
     }
   });
 
-  window.atelier3D = { setVisible, requestRebuild, rebuild, setCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop };
+  window.atelier3D = { setVisible, requestRebuild, rebuild, setCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();

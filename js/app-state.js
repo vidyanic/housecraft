@@ -16,14 +16,16 @@
   // ── Persistence helper (inline, used only at init) ───────────
   function loadProject() {
     try {
-      const raw = localStorage.getItem('atelier-plan-project');
-      return raw ? JSON.parse(raw) : null;
+      const raw = localStorage.getItem(A.storagePrefix+'project');
+      return raw ? A.validateProject(JSON.parse(raw)) : null;
     } catch { return null; }
   }
 
   // ── Core mutable state ───────────────────────────────────────
+  const restoredProject=loadProject();
   const state = {
-    project:   normalizeProject(loadProject() || deep(DEFAULT)),
+    project:   normalizeProject(restoredProject || deep(DEFAULT)),
+    isFreshProject: !restoredProject,
     selected:  null,
     selectedIds: new Set(),
     tool:      'select',
@@ -68,7 +70,10 @@
 
   // ── History ──────────────────────────────────────────────────
   function checkpoint() {
-    state.history.push(JSON.stringify(state.project));
+    if (state.editSession?.checkpointed) return;
+    const snapshot = JSON.stringify(state.project);
+    if (state.history.at(-1) === snapshot) return;
+    state.history.push(snapshot);
     if (state.history.length > 40) state.history.shift();
     state.future = [];
   }

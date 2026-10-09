@@ -21,7 +21,7 @@
     cv.width=W*dpr; cv.height=H*dpr;
     const c=cv.getContext('2d'); c.scale(dpr,dpr);
     const o={...spec, rotation:0, transparency:0, active:spec.active};
-    const pad=14, sc=Math.min((W-pad*2)/Math.max(spec.w,1),(H-pad*2)/Math.max(spec.d,1),0.55);
+    const pad=14, sc=Math.min((W-pad*2)/Math.max(spec.w,1),(H-pad*2)/Math.max(spec.d,1),spec.system?3.5:0.55);
     c.translate(W/2, H/2); c.scale(sc,sc);
     const prev = S().scale !== undefined ? S().scale : 1;
     if (A.state) S().scale = sc;
@@ -32,7 +32,7 @@
 
   // ── Card HTML builder ────────────────────────────────────────
   const catCardHtml = x =>
-    `<div class="object-card" draggable="true" data-object="${x.type}" title="Tap to add · Drag onto plan">` +
+    `<div class="object-card" role="button" tabindex="0" aria-label="Add ${x.name}" draggable="true" data-object="${x.type}" title="Tap to add · Drag onto plan">` +
     `<div class="object-icon"><img src="${makeThumb(x)}" alt=""></div>` +
     `<span>${x.name}</span>` +
     `<small>${A.formatLength(x.w)} × ${A.formatLength(x.d)}</small></div>`;
@@ -66,6 +66,7 @@
         e.dataTransfer.effectAllowed = 'copy';
       });
       el.addEventListener('click', () => A.addObjectToPlan(el.dataset.object));
+      el.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();A.addObjectToPlan(el.dataset.object);}});
     });
 
     // Sync pill + dropdown state

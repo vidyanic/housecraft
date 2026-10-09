@@ -31,9 +31,10 @@
     return {minX:Math.min(...xs)-pad,maxX:Math.max(...xs)+pad,minY:Math.min(...ys)-pad,maxY:Math.max(...ys)+pad};
   }
 
-  function planBounds() {
-    const entities=A.allEntities().length?A.allEntities():[{x:0,y:0,w:1000,d:700}];
-    return entities.reduce((b,o)=>{const xs=o.x!==undefined?[o.x,o.x+(o.w||0)]:[o.x1,o.x2],ys=o.y!==undefined?[o.y,o.y+(o.d||0)]:[o.y1,o.y2];return {minX:Math.min(b.minX,...xs),minY:Math.min(b.minY,...ys),maxX:Math.max(b.maxX,...xs),maxY:Math.max(b.maxY,...ys)}},{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});
+  function planBounds(floorOverride=null) {
+    const all=floorOverride?A.allEntities(floorOverride):S().viewMode==='3d'&&S().project.camera.allFloors?S().project.floors.flatMap(f=>A.allEntities(f)):A.allEntities();
+    const entities=all.length?all:[{x:0,y:0,w:1000,d:700}];
+    return entities.reduce((b,o)=>{const box=o.x!==undefined?itemAabb({...o,w:o.w||0,d:o.d||0},0):{minX:Math.min(o.x1,o.x2),maxX:Math.max(o.x1,o.x2),minY:Math.min(o.y1,o.y2),maxY:Math.max(o.y1,o.y2)};return {minX:Math.min(b.minX,box.minX),minY:Math.min(b.minY,box.minY),maxX:Math.max(b.maxX,box.maxX),maxY:Math.max(b.maxY,box.maxY)}},{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});
   }
 
   function movingBox(objs) {
@@ -185,26 +186,27 @@
   // ── Room drawing ─────────────────────────────────────────────
   function drawRoom(r) {
     const c=ctx(),s=S(),p=A.worldToScreen(r), w=r.w*s.scale, h=r.d*s.scale;
-    c.save(); c.globalAlpha=r.opacity ?? 1; c.fillStyle=r.color; c.fillRect(p.x,p.y,w,h);
-    c.save();c.beginPath();c.rect(p.x,p.y,w,h);c.clip();c.globalAlpha=.18;c.strokeStyle='#65716b';c.lineWidth=.55;
+    const path=()=>{c.beginPath();if(r.polygon){r.polygon.forEach((point,i)=>{const q=A.worldToScreen(point);i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y);});c.closePath();}else c.rect(p.x,p.y,w,h);};
+    c.save(); c.globalAlpha=r.opacity ?? 1; c.fillStyle=r.color;path();c.fill();
+    c.save();path();c.clip();c.globalAlpha=.18;c.strokeStyle='#65716b';c.lineWidth=.55;
     const finish=(r.floorMaterial||'Wood').toLowerCase(),step=Math.max(9,finish==='wood'?42*s.scale:80*s.scale);
     if(finish==='wood'){for(let y=p.y;y<p.y+h;y+=step){c.beginPath();c.moveTo(p.x,y);c.lineTo(p.x+w,y);c.stroke();for(let x=p.x+(Math.round((y-p.y)/step)%2)*step;x<p.x+w;x+=step*2){c.beginPath();c.moveTo(x,y);c.lineTo(x,y+step);c.stroke()}}}
     else if(finish==='tile'||finish==='stone'){for(let x=p.x;x<p.x+w;x+=step){c.beginPath();c.moveTo(x,p.y);c.lineTo(x,p.y+h);c.stroke()}for(let y=p.y;y<p.y+h;y+=step){c.beginPath();c.moveTo(p.x,y);c.lineTo(p.x+w,y);c.stroke()}}
     else {for(let x=p.x-h;x<p.x+w+h;x+=step){c.beginPath();c.moveTo(x,p.y);c.lineTo(x+h,p.y+h);c.stroke()}}
     c.restore();c.globalAlpha=1;
-    c.strokeStyle='#aeb5ae';c.lineWidth=1.2;c.strokeRect(p.x+.5,p.y+.5,w-1,h-1);
+    c.strokeStyle='#aeb5ae';c.lineWidth=1.2;path();c.stroke();
     if (w>80&&h>55) {
       c.fillStyle='#4f5c56';c.textAlign='center';c.font='600 11px Inter, sans-serif';
       c.fillText(r.name,p.x+w/2,p.y+h/2-10);
       c.font='10px Inter, sans-serif';c.fillStyle='#617069';
       c.fillText(`${A.formatLength(r.w)} × ${A.formatLength(r.d)}`,p.x+w/2,p.y+h/2+4);
       c.fillStyle='#78837e';
-      c.fillText(A.formatArea(r.w*r.d),p.x+w/2,p.y+h/2+18);
+      c.fillText(A.formatArea(A.roomArea(r)),p.x+w/2,p.y+h/2+18);
     } else if (w>55&&h>35) {
       c.fillStyle='#4f5c56';c.textAlign='center';c.font='600 10px Inter, sans-serif';
       c.fillText(r.name,p.x+w/2,p.y+h/2-2);
       c.font='9px Inter, sans-serif';c.fillStyle='#727d77';
-      c.fillText(A.formatArea(r.w*r.d),p.x+w/2,p.y+h/2+10);
+      c.fillText(A.formatArea(A.roomArea(r)),p.x+w/2,p.y+h/2+10);
     }
     if(s.selected===r.id){
       c.strokeStyle='#2f765f';c.lineWidth=2;c.setLineDash([6,4]);c.strokeRect(p.x-2,p.y-2,w+4,h+4);c.setLineDash([]);
@@ -510,6 +512,7 @@
     const s=S();
     c.strokeStyle = '#48564f'; c.lineWidth = 1.25/s.scale; c.fillStyle = o.color;
     const w=o.w,d=o.d,t=o.shape||o.type;
+    if(o.system&&t!=='sink'){A.drawServiceSymbol(o,c);return;}
     if(t==='sofa') { roundedRect(c,-w/2,-d/2,w,d,10);c.fill();c.stroke();if(o.type==='sectional'){roundedRect(c,w*.18,-d*.05,w*.31,d*.53,8);c.fill();c.stroke()}c.beginPath();c.moveTo(-w/2+12,-d/2+d*.34);c.lineTo(w/2-12,-d/2+d*.34);c.moveTo(-w*.18,-d/2+d*.34);c.lineTo(-w*.18,d/2);c.moveTo(w*.18,-d/2+d*.34);c.lineTo(w*.18,d/2);c.stroke(); }
     else if(t==='chair'){roundedRect(c,-w/2,-d/2,w,d,12);c.fill();c.stroke();c.beginPath();c.arc(0,-d*.08,Math.min(w,d)*.27,0,Math.PI*2);c.stroke()}
     else if(t==='bed'){roundedRect(c,-w/2,-d/2,w,d,5);c.fill();c.stroke();c.fillStyle='rgba(255,255,255,.72)';roundedRect(c,-w*.42,-d*.40,w*.37,d*.24,5);c.fill();roundedRect(c,w*.05,-d*.40,w*.37,d*.24,5);c.fill();c.strokeStyle='rgba(82,96,88,.65)';c.stroke();}
@@ -757,11 +760,12 @@
   // ── Main draw orchestrator ───────────────────────────────────
   function draw() {
     const s=S(),c=ctx();
+    A.syncArchitecture?.();
+    if(s.viewMode==='3d'){window.atelier3D?.requestRebuild();return;}
     if(!s.canvas || !c) return;
     const dpr=Math.min(devicePixelRatio||1,2),w=s.canvas.width/dpr,h=s.canvas.height/dpr;
     if(w <= 0 || h <= 0) return;
     c.clearRect(0,0,w,h);
-    if(s.viewMode==='3d'){window.atelier3D?.requestRebuild();return}
     drawGrid(w,h);
     drawSiteAnnotations();
     drawBuiltUpBoundary();
@@ -782,6 +786,7 @@
     drawPreview();
     drawSnapGuides();
     drawDragMeasure();
+    A.drawServiceDraft?.(c);
   }
 
   // ── Expose on global namespace ───────────────────────────────

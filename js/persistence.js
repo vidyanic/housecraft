@@ -25,10 +25,13 @@
   // ── Save / Load ──────────────────────────────────────────────
   function saveProject() {
     const s=S();
-    s.project.name=A.$('#projectName').value.trim()||'Untitled project';
+    s.project.name=s.project.name.trim()||'Untitled project';
+    s.project.projectId ||= A.uid();
     try {
-      localStorage.setItem('atelier-plan-project',JSON.stringify(s.project));
+      localStorage.setItem(A.storagePrefix+'project',JSON.stringify(s.project));
+      A.recordProject?.();
       A.$('#saveState').textContent='Saved locally';showToast('Project saved in this browser');
+      A.$('#saveState').style.setProperty('--dot','#29a978');
     } catch {
       A.$('#saveState').textContent='Browser storage unavailable';showToast('Use Export JSON to keep this project');
     }
@@ -52,14 +55,16 @@
   }
 
   function importProject(file) {
+    if (file.size > 20 * 1024 * 1024) { showToast('Project files must be under 20 MB'); return; }
     const reader=new FileReader();
     reader.onload=()=>{
       try{
-        const p=JSON.parse(reader.result);if(!Array.isArray(p.floors))throw new Error('Invalid project');
-        A.checkpoint();const s=S();s.project=A.normalizeProject(p);s.project.activeFloor=Math.min(s.project.activeFloor||0,s.project.floors.length-1);
+        const p=A.normalizeProject(A.validateProject(JSON.parse(reader.result)));
+        A.checkpoint();const s=S();s.project=p;
         s.selected=null;s.selectedIds.clear();A.fitPlan();A.syncUI();saveProject();showToast('Project imported');
-      } catch(err) { showToast('That file is not a valid Atelier project'); }
+      } catch(err) { showToast(`Import failed: ${err.message}`); }
     };
+    reader.onerror=()=>showToast('Could not read this project file');
     reader.readAsText(file);
   }
 

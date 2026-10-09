@@ -159,7 +159,7 @@
 
   // ── Solar position calculator ────────────────────────────────
   function calculateSolarPosition(sun) {
-    const location=sun.location||{},latitude=Math.max(-89,Math.min(89,Number(location.latitude)||26.8467)),longitude=Number(location.longitude)||80.9462,timezone=Number(location.timezone)||5.5,time=Math.max(0,Math.min(23,Number(sun.time??12))),week=Math.max(1,Math.min(52,Math.round(Number(sun.week??26)))),dayOfYear=(week-.5)*7;
+    const location=sun.location||{},latitude=Math.max(-89,Math.min(89,Number(location.latitude??26.8467))),longitude=Number(location.longitude??80.9462),timezone=Number(location.timezone??5.5),time=Math.max(0,Math.min(23,Number(sun.time??12))),week=Math.max(1,Math.min(52,Math.round(Number(sun.week??26)))),dayOfYear=(week-.5)*7;
     const gamma=2*Math.PI/365*(dayOfYear-1+(time-12)/24),decl=0.006918-.399912*Math.cos(gamma)+.070257*Math.sin(gamma)-.006758*Math.cos(2*gamma)+.000907*Math.sin(2*gamma)-.002697*Math.cos(3*gamma)+.00148*Math.sin(3*gamma),eqTime=229.18*(.000075+.001868*Math.cos(gamma)-.032077*Math.sin(gamma)-.014615*Math.cos(2*gamma)-.040849*Math.sin(2*gamma)),solarMinutes=time*60+eqTime+4*longitude-60*timezone,hourAngle=solarMinutes/4-180,latRad=latitude*Math.PI/180,declRad=decl,haRad=hourAngle*Math.PI/180,cosZenith=Math.max(-1,Math.min(1,Math.sin(latRad)*Math.sin(declRad)+Math.cos(latRad)*Math.cos(declRad)*Math.cos(haRad))),solarAltitude=90-Math.acos(cosZenith)*180/Math.PI;
     let azimuth=(Math.atan2(Math.sin(haRad),Math.cos(haRad)*Math.sin(latRad)-Math.tan(declRad)*Math.cos(latRad))*180/Math.PI+180)%360;if(azimuth<0)azimuth+=360;
     const above=Math.max(0,Math.sin(Math.max(0,solarAltitude)*Math.PI/180));

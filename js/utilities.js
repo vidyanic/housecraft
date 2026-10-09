@@ -13,7 +13,7 @@
   const icon = id => `<svg class="icon"><use href="#${id}"/></svg>`;
 
   // ── Identity & Deep Clone ────────────────────────────────────
-  const uid = () => Math.random().toString(36).slice(2, 9);
+  const uid = () => window.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 9);
   const deep = v => JSON.parse(JSON.stringify(v));
 
   // ── HTML Escaping ────────────────────────────────────────────
@@ -49,10 +49,10 @@
   }
 
   function formatFeetInches(cm) {
-    const totalInches = Math.max(0, Math.round(cm / 2.54)),
+    const totalInches = Math.round(Math.abs(cm) / 2.54),
       feet = Math.floor(totalInches / 12),
       inches = totalInches - feet * 12;
-    return `${feet}′ ${inches}″`;
+    return `${cm < 0 && totalInches ? '-' : ''}${feet}′ ${inches}″`;
   }
 
   function displayValue(cm) {
@@ -65,16 +65,19 @@
 
   function toCm(v) {
     const raw = String(v ?? '').trim(), u = getUnit();
+    if (!raw) return NaN;
     if (u === 'ft') {
       const normalized = raw.replace(/[′']/g, "'").replace(/[″"]/g, '"');
+      const inchesOnly = normalized.match(/^(-?\d+(?:\.\d+)?)\s*(?:"|in)$/i);
+      if (inchesOnly) return Number(inchesOnly[1]) * 2.54;
       const feetMatch = normalized.match(/^(-?\d+(?:\.\d+)?)\s*(?:'|ft)?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/i);
       if (feetMatch && (normalized.includes("'") || normalized.includes('"') || /\bft\b|\bin\b/i.test(normalized))) {
-        const sign = Number(feetMatch[1]) < 0 ? -1 : 1, feet = Math.abs(Number(feetMatch[1])), inches = Number(feetMatch[2] || 0);
+        const sign = normalized.startsWith('-') ? -1 : 1, feet = Math.abs(Number(feetMatch[1])), inches = Number(feetMatch[2] || 0);
         return sign * (feet * 12 + inches) * 2.54;
       }
-      const n = Number(raw); return Number.isFinite(n) ? n * 30.48 : 0;
+      const n = Number(raw); return Number.isFinite(n) ? n * 30.48 : NaN;
     }
-    const n = Number(raw) || 0;
+    const n = Number(raw);
     return u === 'm' ? n * 100 : u === 'in' ? n * 2.54 : n;
   }
 
@@ -99,7 +102,12 @@
 
   // ── Expose on global namespace ───────────────────────────────
   window.Atelier = window.Atelier || {};
+  if(typeof location!=='undefined'&&new URLSearchParams(location.search).has('test')){
+    window.Atelier.runtimeErrors=[];
+    window.addEventListener('error',event=>window.Atelier.runtimeErrors.push(event.error?.stack||event.message));
+  }
   Object.assign(window.Atelier, {
+    storagePrefix: typeof location!=='undefined' && new URLSearchParams(location.search).has('test') ? 'atelier-plan-test-' : 'atelier-plan-',
     $, $$, icon, uid, deep, escapeHtml, shade,
     gridStep, snap, displayValue, toCm, unitLabel,
     areaUnitLabel, formatArea, formatLength, formatFeetInches

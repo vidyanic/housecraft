@@ -33,6 +33,7 @@
     button { border: 0; outline: none; -webkit-tap-highlight-color: transparent; }
 
     .app {
+      grid-template-columns: minmax(0, 1fr);
       height: 100vh;
       height: 100dvh;
       display: grid;
@@ -549,7 +550,7 @@
     }
 
     /* Small Tablets and Mobile Phones (<= 768px) */
-    @media (max-width: 768px) {
+    @media (max-width: 920px) {
       .app {
         grid-template-rows: var(--topbar-height) 1fr var(--mobile-tabbar-height);
       }
@@ -631,7 +632,11 @@
       .brand-mark { width: 26px; height: 26px; }
       .brand-mark::before { width: 8px; height: 8px; }
       .brand-name { display: none; }
-      .project-name { width: 100px; font-size: 12px; margin-left: 2px; }
+      .project-name { width: 70px; min-width:0; font-size: 12px; margin-left: 0; }
+      .brand {gap:4px;}
+      .view-switch button span {display:none;}
+      .top-actions {gap:4px;}
+      #saveBtn span {display:none;}
       .view-switch button { padding: 5px 9px; font-size: 11px; }
       .button, .icon-button { height: 35px; min-width: 35px; }
       .tool { width: 34px; height: 34px; }
@@ -640,3 +645,20 @@
       .chip-name { font-size: 11px; }
       .chip-btn { height: 28px; padding: 0 9px; font-size: 10px; }
     }
+/* Project recovery and keyboard access */
+.project-card { border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0; }
+.project-card strong,.project-card small {display:block;margin-bottom:8px;}
+.project-card details button {display:block;margin:6px 0;}
+#projectLibraryBody {max-height:55vh;overflow:auto;}
+:focus-visible {outline:2px solid #277960;outline-offset:3px;}
+input:invalid {border-color:#b4472f;}
+.object-list-row {display:flex;justify-content:space-between;width:100%;padding:10px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;cursor:pointer;}
+#objectList {max-height:55vh;overflow:auto;margin-top:12px;}
+#objectSearch {width:100%;padding:10px;}
+#drawingPrint {display:none;}
+.planning-tools {padding:12px 18px;border-bottom:1px solid var(--line);font-size:12px;flex-shrink:0;max-height:32vh;overflow:auto;}
+.planning-tools summary {cursor:pointer;font-weight:600;}
+.planning-tools label,.planning-tools select,.planning-tools > details > button {display:block;width:100%;margin-top:10px;}
+.planning-tools p {font-size:10px;color:var(--muted);line-height:1.5;}
+@media print {html:has(body.printing-drawing),body.printing-drawing {height:auto!important;overflow:visible!important;background:white!important;}}
+@media print {body.printing-drawing .app,body.printing-drawing main,body.printing-drawing .modal-backdrop,body.printing-drawing .toast {display:none!important;}body.printing-drawing #drawingPrint {display:block;position:absolute;top:0;left:0;}body.printing-drawing #drawingPrint,body.printing-drawing #drawingPrint * {visibility:visible!important;}body.printing-drawing #drawingPrint svg {max-width:none!important;}@page {margin:0;} }

@@ -47,10 +47,10 @@
         if(dist<Math.max((o.width||23)/2, 10/s.scale)) return o;
       }
     }
-    for(let i=f.items.length-1;i>=0;i--){const o=f.items[i];if(!A.isRoofVisibleInPlan(o))continue;const cx=o.x+o.w/2,cy=o.y+o.d/2,a=-(o.rotation||0)*Math.PI/180,dx=world.x-cx,dy=world.y-cy,x=dx*Math.cos(a)-dy*Math.sin(a)+cx,y=dx*Math.sin(a)+dy*Math.cos(a)+cy;if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.d)return o}
+    for(let i=f.items.length-1;i>=0;i--){const o=f.items[i];if(!A.isRoofVisibleInPlan(o))continue;if(A.isServiceRoute?.(o)){if(A.serviceHit(o,world,Math.max((o.diameter||2.5)/2,8/s.scale)))return o;continue;}const cx=o.x+o.w/2,cy=o.y+o.d/2,a=-(o.rotation||0)*Math.PI/180,dx=world.x-cx,dy=world.y-cy,x=dx*Math.cos(a)-dy*Math.sin(a)+cx,y=dx*Math.sin(a)+dy*Math.cos(a)+cy;if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.d)return o}
     for(let i=f.walls.length-1;i>=0;i--){const o=f.walls[i],vx=o.x2-o.x1,vy=o.y2-o.y1,t=Math.max(0,Math.min(1,((world.x-o.x1)*vx+(world.y-o.y1)*vy)/(vx*vx+vy*vy||1))),dist=Math.hypot(world.x-(o.x1+t*vx),world.y-(o.y1+t*vy));if(dist<Math.max(o.thickness/2,10/s.scale))return o}
     for(let i=f.dimensions.length-1;i>=0;i--){const o=f.dimensions[i],vx=o.x2-o.x1,vy=o.y2-o.y1,t=Math.max(0,Math.min(1,((world.x-o.x1)*vx+(world.y-o.y1)*vy)/(vx*vx+vy*vy||1))),dist=Math.hypot(world.x-(o.x1+t*vx),world.y-(o.y1+t*vy));if(dist<12/s.scale)return o}
-    for(let i=f.rooms.length-1;i>=0;i--){const o=f.rooms[i];if(world.x>=o.x&&world.x<=o.x+o.w&&world.y>=o.y&&world.y<=o.y+o.d)return o}
+    for(let i=f.rooms.length-1;i>=0;i--){const o=f.rooms[i];if(o.polygon?A.pointInPolygon(world,o.polygon):world.x>=o.x&&world.x<=o.x+o.w&&world.y>=o.y&&world.y<=o.y+o.d)return o}
     return null;
   }
 
@@ -72,6 +72,7 @@
 
   // ── Wall/opening alignment ───────────────────────────────────
   function alignOpeningToWall(o) {
+    if(A.hostOpening){A.hostOpening(o);return;}
     if(!['door','window'].includes(o.shape))return;
     const cx=o.x+o.w/2,cy=o.y+o.d/2;let best=null;
     A.floor().walls.forEach(w=>{const vx=w.x2-w.x1,vy=w.y2-w.y1,t=Math.max(0,Math.min(1,((cx-w.x1)*vx+(cy-w.y1)*vy)/(vx*vx+vy*vy||1))),px=w.x1+t*vx,py=w.y1+t*vy,dist=Math.hypot(cx-px,cy-py);if(!best||dist<best.dist)best={wall:w,x:px,y:py,dist}});
@@ -161,6 +162,7 @@
 
   function setView(next) {
     const s=S();
+    if(next==='3d'&&!window.atelier3D){A.showToast('3D is unavailable in this browser. Plan editing remains available.');return;}
     if(next!=='3d')window.atelier3D?.setWalk?.(false);
     s.viewMode=next;s.canvas.dataset.view=next;s.canvas.style.display=next==='3d'?'none':'block';A.$('#threeStage').style.display=next==='3d'?'block':'none';window.atelier3D?.setVisible(next==='3d');A.$$('.view-switch button').forEach(b=>b.classList.toggle('active',b.dataset.view===next));
     A.$$('.tool[data-tool="room"],.tool[data-tool="wall"],.tool[data-tool="roof"],.tool[data-tool="dimension"]').forEach(b=>b.disabled=next==='3d');
@@ -178,10 +180,12 @@
     if(customWorldPos){wx=customWorldPos.x; wy=customWorldPos.y;}
     else{
       const r=s.canvas.getBoundingClientRect(),centerScreen={x:r.width/2,y:r.height/2};
-      const centerWorld=A.screenToWorld(centerScreen);
+      const bounds=A.planBounds();
+      const centerWorld=r.width&&r.height?A.screenToWorld(centerScreen):{x:(bounds.minX+bounds.maxX)/2,y:(bounds.minY+bounds.maxY)/2};
       wx=centerWorld.x; wy=centerWorld.y;
     }
     const o={id:A.uid(),type:src.type,shape:src.shape,name:src.name,x:A.snap(wx-src.w/2),y:A.snap(wy-src.d/2),w:src.w,d:src.d,height:src.height||80,elevation:src.elevation||0,rotation:0,swing:src.swing,openAngle:src.openAngle,hingeSide:'left',swingSide:1,doorStyle:src.doorStyle,openingStyle:src.openingStyle,templeFinial:src.templeFinial,stairWidth:src.stairWidth,landingWidth:src.landingWidth,landingLength:src.landingLength,landingDepth:src.landingDepth,lowerStepCount:src.lowerStepCount,upperStepCount:src.upperStepCount,stepCount:src.stepCount,underStorage:src.underStorage,parkingUnder:src.parkingUnder,switches:src.switches,breakers:src.breakers,bladeCount:src.bladeCount,lumens:src.lumens,transparency:src.transparency??(src.material==='Glass'?45:0),active:src.active??false,clearance:0,lockAspect:!['door','window'].includes(src.shape),material:src.material||'Wood',color:src.color};
+    A.initServiceObject?.(o,src);
     if(['door','window'].includes(src.shape))alignOpeningToWall(o);
     else if(A.WALL_MOUNTED_SHAPES.has(src.shape))alignWallMountedToWall(o);
     A.floor().items.push(o);
@@ -189,7 +193,7 @@
     A.queueSave();
     A.updateCounts();
     A.showToast(`${src.name} added`);
-    if(window.innerWidth<=768){A.setMobileTab('stage');}
+    if(window.innerWidth<=920){A.setMobileTab('stage');}
   }
 
   // ── Expose on global namespace ───────────────────────────────
