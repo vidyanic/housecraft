@@ -40,11 +40,15 @@ Active-floor and stacked-floor views apply each floor's elevation. Copied floors
 
 Solar controls use hour/week, latitude, longitude, and time-zone offset. Zero-valued coordinates and UTC are valid. Architectural azimuth is measured clockwise from north; north orientation also rotates solar direction in 3D. This is a visual solar study rather than an annual energy/daylight simulation.
 
-## Structural estimates
+## Structural planning
 
-The model estimates single-floor gravity loads with a 150 mm slab, 1 kN/m² finish load, 2 kN/m² live load, approximate wall load, and 1.5 load factor. Column steel uses the first bar-count/T-diameter pattern, falling back to a disclosed 1.5% area. Material grades are parsed from their fields. Circular columns use circular section area and corresponding 3D geometry.
+Structure is a separate shared-model workspace with explicit members, panels, loads, supports, grid axes, locks, schedules, adjacent floors and elevation projections. Lucknow Zone III is the location default. Soil II / 150 kPa are provisional inputs. Code references and unresolved amendment verification are included in reports.
 
-Utilization can exceed 100% and overload produces a failed modeled check. Reports distinguish these planning estimates from verified structural design. Cumulative multi-floor loading, bending/frame analysis, wind/seismic actions, and foundation design are not solved.
+Gravity loads conserve clipped panel tributary areas and accumulate down aligned columns by elevation. All recognized longitudinal bar groups contribute to steel area; missing reinforcement is not invented. Basic axial, steel-ratio, bearing-pressure and effective-depth checks remain preliminary.
+
+A bounded elastic 3D frame solver includes fixed/pinned bases, connected members/free cantilever tips, rigid floor constraints, cracked stiffness, massless condensation and modal/CQC response. Seismic mass, floor forces, participation, base-shear scaling, drift, member forces and 97 static screening combinations are available. Static screening is explicitly outside Lucknow's dynamic-design eligibility. Numerical benchmarks are distinct from full code or professional validation.
+
+Fix proposals clone the project, preserve manual member identities/locks, display before/after changes, reject stale/new failures, and apply in one undo step. No column removals are automatically certified. Detailed RC design, actual plate/shell/beam gravity distribution, wall shell stiffness, vertical earthquake, P-delta, wind and geotechnical/foundation design remain uncomputed; reports identify them. See STRUCTURAL_IMPLEMENTATION.md for the exact scope.
 
 ## Deliverables
 

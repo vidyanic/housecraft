@@ -17,7 +17,7 @@ test('Imperial lengths and signed round trips',()=>{
   for(const cm of [-600,-60.96,-15.24,0,15.24,162.56]) assert.ok(Math.abs(A.toCm(A.formatLength(cm))-cm)<1.28);
   assert.ok(Number.isNaN(A.toCm('bad')));assert.ok(Number.isNaN(A.toCm('')));
 });
-for(const f of ['js/constants.js','js/furniture-catalog.js','default-layout.js','js/project-model.js','js/project-validation.js','js/app-state.js'])load(f);
+for(const f of ['js/constants.js','js/furniture-catalog.js','js/structural-model.js','default-layout.js','js/project-model.js','js/project-validation.js','js/app-state.js'])load(f);
 load('js/services.js');
 test('Service routes preserve bends, vertical lengths and serialization',()=>{
  const src=A.CATALOG.find(o=>o.type==='cold-water-pipe'),o={...src,id:'service-test',x:0,y:0,rotation:0};A.initServiceObject(o,src);
@@ -38,6 +38,8 @@ test('Reject malformed projects before replacement',()=>{
  for(const p of [{floors:[]},{floors:[{items:'bad'}]},{floors:[{items:[{x:0,y:0,w:-1,d:2}]}]}])assert.throws(()=>A.validateProject(p));
  const p=A.deep(A.DEFAULT);p.activeFloor=-1;assert.throws(()=>A.validateProject(p));
  const duplicate=A.deep(A.DEFAULT);duplicate.floors[0].items[0].id=duplicate.floors[0].rooms[0].id;assert.throws(()=>A.validateProject(duplicate));
+ for(const basis of [{soilClass:'invalid'},{bearingKpa:-1},{columnStiffness:2},{soilVerified:'no'}]){const bad=A.deep(A.DEFAULT);bad.structuralBasis=basis;assert.throws(()=>A.validateProject(bad));}
+ const badLoad=A.deep(A.DEFAULT);badLoad.floors[0].loads=[{id:'bad-load',case:'dead',value:-10,x:0,y:0}];assert.throws(()=>A.validateProject(badLoad));
  assert.equal(JSON.stringify(A.state.project),original);
 });
 load('js/architecture.js');load('js/structural-analysis.js');
@@ -61,6 +63,7 @@ test('Hosted openings, joined corners, and attached dimensions follow edits',()=
 });
 test('Structural overload remains visible and fails the modeled check',()=>{
  const f=floorFixture();f.columns=[{id:'column',x:0,y:0,w:10,d:10,height:300,material:'RCC M20',steelGrade:'Fe415',rebarSpec:'4-T8'}];
+ f.loads=[{id:'overload',case:'dead',value:1000,columnId:'column',x:0,y:0}];
  const p={floors:[f],activeFloor:0};const report=A.analyzeStructure(f,p);
  assert.ok(report.columnDetails[0].utilization>100);assert.equal(report.columnDetails[0].status,'fail');assert.equal(report.summary.status,'fail');
  assert.equal(A.analyzeStructure(f,p),report);f.items.push({id:'furniture',x:20,y:30,w:50,d:50});assert.equal(A.analyzeStructure(f,p),report);f.columns[0].w=40;assert.notEqual(A.analyzeStructure(f,p),report);

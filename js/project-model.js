@@ -210,6 +210,7 @@
       if(needsLayoutRepair) repairFloorLayout(f);
     });
     p.layoutValidated=true;
+    A.normalizeStructure?.(p);
     return p;
   }
 

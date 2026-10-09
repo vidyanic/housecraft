@@ -1,7 +1,7 @@
 /**
  * js/structural-analysis.js — Civil Engineering Structural Analysis & Framing Engine
  *
- * Implements standard civil engineering guidelines (IS 456:2000, ACI 318, Eurocode 2, IS 1905):
+ * Legacy plan annotations and compatibility APIs for preliminary structural screening.
  * - Pillar/Column spacing and layout rules (optimal 3-5m, max 6m)
  * - Beam span-to-effective-depth ratio (L/d deflection control)
  * - Column tributary area & factored axial load estimation (Pu <= 0.4 fck Ac + 0.67 fy Asc)
@@ -39,36 +39,13 @@
 
   // ── Column Tributary Area Calculation ────────────────────────
   function calculateColumnTributaryArea(col, allCols, floor) {
-    const center = colCenter(col);
-    const distances = allCols
-      .filter(other => other.id !== col.id)
-      .map(other => {
-        const oc = colCenter(other);
-        return { col: other, dist: dist(center, oc), dx: oc.x - center.x, dy: oc.y - center.y };
-      })
-      .sort((a, b) => a.dist - b.dist);
-
-    let halfSpanX = 200, halfSpanY = 200; // default 2m half-span (cm)
-    const xNeighbors = distances.filter(d => Math.abs(d.dy) < Math.abs(d.dx));
-    const yNeighbors = distances.filter(d => Math.abs(d.dx) <= Math.abs(d.dy));
-
-    if (xNeighbors.length > 0) {
-      const nearestX = xNeighbors[0].dist;
-      halfSpanX = Math.min(350, Math.max(100, nearestX / 2));
-    }
-    if (yNeighbors.length > 0) {
-      const nearestY = yNeighbors[0].dist;
-      halfSpanY = Math.min(350, Math.max(100, nearestY / 2));
-    }
-
-    const areaSqM = ((halfSpanX * 2) / 100) * ((halfSpanY * 2) / 100);
-    return Math.max(4.0, Math.min(45.0, areaSqM));
+    return A.tributaryAssignment({...floor,columns:allCols},A.state.project).alloc.get(col.id)||0;
   }
 
   // ── Structural Analysis Engine ───────────────────────────────
   const analysisCache = new WeakMap();
   const derivedKeys = new Set(['status','utilization','colorCode','redundant','redundancyReason','isRedundant','hierarchy','recommendation']);
-  const analysisSignature=(floor,project)=>JSON.stringify({floor:{walls:floor.walls,columns:floor.columns,beams:floor.beams,rooms:floor.rooms},activeFloor:project.activeFloor,support:project.floors.map(f=>({elevation:f.elevation,columns:f.columns}))},(key,value)=>derivedKeys.has(key)?undefined:value);
+  const analysisSignature=(floor,project)=>floor.id+'|'+A.structuralSignature(project);
   function analyzeStructure(floor = A.floor(), project = A.state.project) {
     const signature=analysisSignature(floor,project);
     const cached=analysisCache.get(floor);
@@ -82,8 +59,9 @@
     const columns = floor.columns || [];
     const beams = floor.beams || [];
     const walls = floor.walls || [];
-    const allFloors = project.floors || [];
-    const currentFloorIdx = project.activeFloor || 0;
+    const allFloors = [...project.floors||[]].sort((a,b)=>a.elevation-b.elevation);
+    const currentFloorIdx = allFloors.findIndex(f=>f.id===floor.id);
+    const gravity=A.gravityModel(project),floorGravity=gravity.floors.get(floor.id);
 
     const report = {
       summary: {
@@ -121,8 +99,8 @@
 
       // Gross area Ag in mm²
       const Ag = wM * 1000 * (dM * 1000) * (col.shape==='circle'?Math.PI/4:1);
-      const bars=col.rebarSpec?.match(/(\d+)\s*[-×x]?\s*T\s*(\d+)/i);
-      const Asc = bars ? Number(bars[1])*Math.PI*Number(bars[2])**2/4 : Ag*0.015;
+      const groups=A.reinforcementGroups(col.rebarSpec);
+      const Asc = A.steelArea(groups);
       const steelPercent = Asc/Ag;
       const Ac = Ag - Asc;
 
@@ -135,20 +113,21 @@
       const slabDL = tribAreaM2 * (SLAB_THICKNESS * DENSITY_CONCRETE + FINISH_LOAD);
       const slabLL = tribAreaM2 * LIVE_LOAD_RES;
       const approxWallLoad = 12.5 * Math.sqrt(tribAreaM2);
-      const colSelfWeight = wM * dM * hM * DENSITY_CONCRETE;
+      const colSelfWeight = wM * dM * hM * DENSITY_CONCRETE*(col.shape==='circle'?Math.PI/4:1);
 
-      const serviceLoad = slabDL + slabLL + approxWallLoad + colSelfWeight;
+      const demand=floorGravity?.loads.get(col.id);
+      const serviceLoad = demand ? demand.dead+demand.live : slabDL+slabLL+colSelfWeight;
       const factoredAxialLoad = serviceLoad * 1.5;
 
       totalLoadKN += factoredAxialLoad;
-      const colConcreteVol = wM * dM * hM;
+      const colConcreteVol = wM * dM * hM*(col.shape==='circle'?Math.PI/4:1);
       const ftW = (col.footingWidth || 120) / 100;
       const ftD = (col.footingDepth || 120) / 100;
       const ftTh = (col.footingThickness || 35) / 100;
       const footingVol = ftW * ftD * ftTh;
 
       totalConcreteM3 += (colConcreteVol + footingVol);
-      totalSteelKg += (colConcreteVol * DENSITY_CONCRETE * 0.015 * (DENSITY_STEEL / DENSITY_CONCRETE * 0.001) * 1000 + 45);
+      totalSteelKg += Asc*hM/1e6*DENSITY_STEEL;
 
       const utilization = Math.round((factoredAxialLoad / Pu_capacity_kN) * 100);
 
@@ -203,9 +182,9 @@
       const dM = dCm / 100;
 
       const isCantilever = beam.beamType === 'cantilever';
-      const maxLd = isCantilever ? 7 : (beam.beamType === 'continuous' ? 26 : 20);
-      const actualLd = spanM > 0 && dM > 0 ? (spanM / (dCm / 100)) : 0;
-      const minRequiredDepthCm = Math.ceil((spanM / maxLd) * 100);
+      const maxLd = beam.supportCondition==='cantilever'||isCantilever ? 7 : (beam.supportCondition==='continuous' ? 26 : 20);
+      const actualLd = spanM > 0 ? spanM/(A.effectiveDepth(beam)/100) : 0;
+      const minRequiredDepthCm = Math.ceil((spanM/maxLd)*100+(beam.cover??2.5)+(beam.tieDiameter??.8)+(beam.barDiameter??1.6)/2);
 
       const beamVol = bM * dM * spanM;
       totalConcreteM3 += beamVol;
@@ -293,7 +272,7 @@
       report.checks.push({
         name: 'Beam Deflection (L/d Limits)',
         status: 'pass',
-        message: 'All beam depths meet IS 456 / ACI 318 span-to-depth deflection criteria.'
+        message: 'Basic span/effective-depth screening passed. Modification factors and full deflection analysis are not computed.'
       });
     }
 
@@ -355,27 +334,12 @@
     if (beams.length > 0) {
       report.checks.push({
         name: 'Beam Hierarchy (PB / SB / CB)',
-        status: 'pass',
-        message: `${beamHierarchy.primary.length} Primary Beams (PB), ${beamHierarchy.secondary.length} Secondary Beams (SB), ${beamHierarchy.cantilever.length} Cantilever (CB).`
+        status: beamHierarchy.unsupported.length?'fail':'pass',
+        message: `${beamHierarchy.primary.length} column-to-column beams, ${beamHierarchy.cantilever.length} cantilevers, ${beamHierarchy.unsupported.length} unsupported or inconsistent connections.`
       });
     }
 
-    // Pillar Redundancy Check
-    if (pillarOptimization.redundantCount > 0) {
-      report.checks.push({
-        name: 'Pillar Spacing & Redundancy',
-        status: 'warn',
-        message: `${pillarOptimization.redundantCount} redundant pillar(s) detected (<2.5m spacing). Reducing them can save ~${pillarOptimization.potentialSavings.concreteM3}m³ concrete, ~${pillarOptimization.potentialSavings.steelKg}kg steel & ${pillarOptimization.potentialSavings.footings} footings.`
-      });
-      if (report.summary.status !== 'fail') report.summary.status = 'warn';
-      report.summary.score -= 10;
-    } else if (columns.length > 0) {
-      report.checks.push({
-        name: 'Pillar Spacing & Redundancy',
-        status: 'pass',
-        message: `Pillar grid is efficient: ${pillarOptimization.coreCount} core structural pillars, no redundant columns detected.`
-      });
-    }
+    if(columns.length)report.checks.push({name:'Column removal review',status:'warn',message:'No removal candidates are certified. A verified alternate load path and full member/foundation checks are required.'});
 
     report.summary.totalConcreteM3 = Math.round(totalConcreteM3 * 10) / 10;
     report.summary.totalSteelKg = Math.round(totalSteelKg);
@@ -385,14 +349,6 @@
     // Structural Civil Recommendations / Suggestions
     report.suggestions = [];
 
-    if (pillarOptimization.redundantCount > 0) {
-      report.suggestions.push({
-        title: `Reduce ${pillarOptimization.redundantCount} Redundant Pillar(s)`,
-        desc: `Pillars are spaced <2.5m apart. Auto-reduction safely eliminates them, merges continuous beams (≤5.5m), and saves ~₹${pillarOptimization.potentialSavings.estCostInr.toLocaleString('en-IN')}.`,
-        action: 'reduce-pillars',
-        actionLabel: '⚡ Auto-Reduce Redundant Pillars'
-      });
-    }
 
     if (longSpans.length > 0) {
       report.suggestions.push({
@@ -462,931 +418,25 @@
     A.showToast(`Cleared ${count} structural member(s)`);
   }
 
-  function recreateFraming(floor = A.floor(), project = A.state.project) {
-    A.checkpoint();
-    floor.columns = [];
-    floor.beams = [];
-    autoGenerateFraming(floor, project);
-    A.showToast('Recreated structural framing');
+  function recreateFraming(floor = A.floor()){return A.proposeStructuralFixes?.('generate',floor);}
+  function autoAlignWallsForGrid(floor = A.floor()){return A.proposeStructuralFixes?.('align',floor);}
+  function autoSizeStructure(floor = A.floor()){return A.proposeStructuralFixes?.('size',floor);}
+  function autoGenerateFraming(floor = A.floor()){return A.proposeStructuralFixes?.('generate',floor);}
+  function classifyBeamHierarchy(floor = A.floor(), project = A.state.project, autoResize = false){
+    if(autoResize)return A.proposeStructuralFixes?.('size',floor);
+    const result={primary:[],secondary:[],cantilever:[],unsupported:[]},columns=floor.columns||[];
+    for(const b of floor.beams||[]){const support=(key,x,y)=>columns.some(c=>b[key]?c.id===b[key]:b[key]==null&&Math.hypot(colCenter(c).x-b[x],colCenter(c).y-b[y])<1),start=support('startColumnId','x1','y1'),end=support('endColumnId','x2','y2');if(b.supportCondition==='cantilever'&&start!==end)result.cantilever.push(b);else if(start&&end&&b.supportCondition!=='cantilever')result.primary.push(b);else result.unsupported.push(b);}return result;
   }
-
-  // ── Auto-Align Walls & Roof for Straight Structural Grid ─────
-  function autoAlignWallsForGrid(floor = A.floor(), project = A.state.project, toleranceCm = 25) {
-    A.checkpoint();
-    const walls = floor.walls || [];
-    const rooms = floor.rooms || [];
-    const items = floor.items || [];
-    let adjustedCount = 0;
-
-    // 1. Straighten near-horizontal & near-vertical walls
-    walls.forEach(w => {
-      const dx = Math.abs(w.x2 - w.x1);
-      const dy = Math.abs(w.y2 - w.y1);
-      if (dy > 0 && dy <= toleranceCm && dx > dy * 2) {
-        const avgY = Math.round((w.y1 + w.y2) / 2);
-        w.y1 = avgY;
-        w.y2 = avgY;
-        adjustedCount++;
-      } else if (dx > 0 && dx <= toleranceCm && dy > dx * 2) {
-        const avgX = Math.round((w.x1 + w.x2) / 2);
-        w.x1 = avgX;
-        w.x2 = avgX;
-        adjustedCount++;
-      }
-    });
-
-    // 2. Identify dominant continuous grid lines
-    const xCoords = [];
-    const yCoords = [];
-
-    walls.forEach(w => {
-      const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
-      if (w.x1 === w.x2) xCoords.push({ val: w.x1, weight: len });
-      else {
-        xCoords.push({ val: w.x1, weight: 10 });
-        xCoords.push({ val: w.x2, weight: 10 });
-      }
-      if (w.y1 === w.y2) yCoords.push({ val: w.y1, weight: len });
-      else {
-        yCoords.push({ val: w.y1, weight: 10 });
-        yCoords.push({ val: w.y2, weight: 10 });
-      }
-    });
-
-    rooms.forEach(r => {
-      xCoords.push({ val: r.x, weight: r.d || 100 });
-      xCoords.push({ val: r.x + r.w, weight: r.d || 100 });
-      yCoords.push({ val: r.y, weight: r.w || 100 });
-      yCoords.push({ val: r.y + r.d, weight: r.w || 100 });
-    });
-
-    function clusterGrid(coords, tol) {
-      const sorted = [...coords].sort((a, b) => a.val - b.val);
-      const clusters = [];
-      sorted.forEach(pt => {
-        let matched = clusters.find(c => Math.abs(c.center - pt.val) <= tol);
-        if (!matched) {
-          matched = { totalWeight: 0, sumWeighted: 0, center: pt.val };
-          clusters.push(matched);
-        }
-        matched.totalWeight += (pt.weight || 1);
-        matched.sumWeighted += pt.val * (pt.weight || 1);
-        matched.center = Math.round(matched.sumWeighted / matched.totalWeight);
-      });
-      return clusters.map(c => c.center);
-    }
-
-    const gridX = clusterGrid(xCoords, toleranceCm);
-    const gridY = clusterGrid(yCoords, toleranceCm);
-
-    function snapToGrid(val, grid, tol) {
-      let closest = val;
-      let minDiff = Infinity;
-      grid.forEach(g => {
-        const diff = Math.abs(g - val);
-        if (diff <= tol && diff < minDiff) {
-          minDiff = diff;
-          closest = g;
-        }
-      });
-      return closest;
-    }
-
-    walls.forEach(w => {
-      const nx1 = snapToGrid(w.x1, gridX, toleranceCm);
-      const ny1 = snapToGrid(w.y1, gridY, toleranceCm);
-      const nx2 = snapToGrid(w.x2, gridX, toleranceCm);
-      const ny2 = snapToGrid(w.y2, gridY, toleranceCm);
-      if (nx1 !== w.x1 || ny1 !== w.y1 || nx2 !== w.x2 || ny2 !== w.y2) {
-        w.x1 = nx1; w.y1 = ny1; w.x2 = nx2; w.y2 = ny2;
-        adjustedCount++;
-      }
-      if (Math.abs(w.y1 - w.y2) <= 10) w.y2 = w.y1;
-      if (Math.abs(w.x1 - w.x2) <= 10) w.x2 = w.x1;
-    });
-
-    rooms.forEach(r => {
-      const nx = snapToGrid(r.x, gridX, toleranceCm);
-      const ny = snapToGrid(r.y, gridY, toleranceCm);
-      const nx2 = snapToGrid(r.x + r.w, gridX, toleranceCm);
-      const ny2 = snapToGrid(r.y + r.d, gridY, toleranceCm);
-      if (nx !== r.x || ny !== r.y || nx2 !== (r.x + r.w) || ny2 !== (r.y + r.d)) {
-        r.x = nx;
-        r.y = ny;
-        r.w = Math.max(50, nx2 - nx);
-        r.d = Math.max(50, ny2 - ny);
-        adjustedCount++;
-      }
-    });
-
-    items.filter(it => (it.shape || it.type) === 'roof').forEach(rf => {
-      const nx = snapToGrid(rf.x, gridX, toleranceCm);
-      const ny = snapToGrid(rf.y, gridY, toleranceCm);
-      const nx2 = snapToGrid(rf.x + rf.w, gridX, toleranceCm);
-      const ny2 = snapToGrid(rf.y + rf.d, gridY, toleranceCm);
-      rf.x = nx;
-      rf.y = ny;
-      rf.w = Math.max(50, nx2 - nx);
-      rf.d = Math.max(50, ny2 - ny);
-    });
-
-    // Re-create framing so columns sit on clean straight gridlines
-    autoGenerateFraming(floor, project);
-
-    A.queueSave();
-    A.draw();
-    if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-    A.renderInspector();
-    A.showToast(`Grid straightened: aligned walls & recreated framing`);
-    return adjustedCount;
+  function analyzePillarOptimization(floor = A.floor()) {
+    const columns=floor.columns||[];
+    return {columns,redundantCandidates:[],redundantCount:0,coreCount:0,highStressCount:0,optimalCount:0,potentialSavings:{concreteM3:0,steelKg:0,footings:0,estCostInr:0},scope:'Column removal requires verified alternate load paths and member/foundation design.'};
   }
-
-  // ── Auto-Size Pillar & Beam Sizes based on Length & Weight ───
-  function autoSizeStructure(floor = A.floor(), project = A.state.project) {
-    A.checkpoint();
-    const columns = floor.columns || [];
-    const beams = floor.beams || [];
-    let updatedCols = 0;
-    let updatedBeams = 0;
-
-    // Sizing columns from tributary area & factored load
-    columns.forEach(col => {
-      const tribAreaM2 = calculateColumnTributaryArea(col, columns, floor);
-      const slabDL = tribAreaM2 * (SLAB_THICKNESS * DENSITY_CONCRETE + FINISH_LOAD);
-      const slabLL = tribAreaM2 * LIVE_LOAD_RES;
-      const approxWall = 12.5 * Math.sqrt(tribAreaM2);
-      const factoredPu = 1.5 * (slabDL + slabLL + approxWall + 15);
-
-      let newW = 23, newD = 30, rebar = '4-T16 + 8mm ties @ 150 c/c', ftW = 120, ftD = 120, ftTh = 35;
-
-      if (factoredPu <= 400 && tribAreaM2 <= 12) {
-        newW = 23; newD = 23; rebar = '4-T16 + 8mm ties @ 150 c/c';
-        ftW = 100; ftD = 100; ftTh = 30;
-      } else if (factoredPu <= 750 && tribAreaM2 <= 22) {
-        newW = 23; newD = 30; rebar = '4-T16 + 2-T12 ties @ 150 c/c';
-        ftW = 120; ftD = 120; ftTh = 35;
-      } else if (factoredPu <= 1100 || tribAreaM2 <= 32) {
-        newW = 23; newD = 38; rebar = '6-T16 ties @ 125 c/c';
-        ftW = 140; ftD = 140; ftTh = 40;
-      } else {
-        newW = 30; newD = 38; rebar = '8-T16 ties @ 100 c/c';
-        ftW = 160; ftD = 160; ftTh = 45;
-      }
-
-      if (col.w !== newW || col.d !== newD || col.rebarSpec !== rebar) {
-        const oldCx = col.x + (col.w || 23) / 2;
-        const oldCy = col.y + (col.d || 30) / 2;
-        col.w = newW;
-        col.d = newD;
-        col.x = Math.round(oldCx - newW / 2);
-        col.y = Math.round(oldCy - newD / 2);
-        col.rebarSpec = rebar;
-        col.footingWidth = ftW;
-        col.footingDepth = ftD;
-        col.footingThickness = ftTh;
-        updatedCols++;
-      }
-    });
-
-    // Sizing beams based on span length & deflection control
-    beams.forEach(beam => {
-      const spanM = beamLength(beam) / 100;
-      let newWidth = 23, newDepth = 30, rebar = 'Top: 2-T12, Bot: 2-T16, 8mm @ 150 c/c';
-
-      if (spanM <= 3.2) {
-        newWidth = 23; newDepth = 25;
-        rebar = 'Top: 2-T12, Bot: 2-T12, 8mm stirrups @ 150 c/c';
-      } else if (spanM <= 4.2) {
-        newWidth = 23; newDepth = 35;
-        rebar = 'Top: 2-T12, Bot: 2-T16, 8mm stirrups @ 150 c/c';
-      } else if (spanM <= 5.2) {
-        newWidth = 23; newDepth = 40;
-        rebar = 'Top: 2-T12, Bot: 3-T16, 8mm stirrups @ 150 c/c';
-      } else if (spanM <= 6.0) {
-        newWidth = 23; newDepth = 45;
-        rebar = 'Top: 2-T16, Bot: 4-T16, 8mm stirrups @ 125 c/c';
-      } else {
-        newWidth = 30; newDepth = 50;
-        rebar = 'Top: 3-T16, Bot: 4-T20, 8mm stirrups @ 100 c/c';
-      }
-
-      if (beam.depth !== newDepth || beam.width !== newWidth || beam.rebarSpec !== rebar) {
-        beam.depth = newDepth;
-        beam.width = newWidth;
-        beam.rebarSpec = rebar;
-        updatedBeams++;
-      }
-    });
-
-    A.queueSave();
-    A.draw();
-    if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-    A.renderInspector();
-    A.showToast(`Auto-sized: ${updatedCols} pillar(s) & ${updatedBeams} beam(s) adjusted for span & weight`);
+  function autoReduceRedundantPillars(){return A.proposeStructuralFixes?.('reduce');}
+  function autoImprovePillarGrid(floor = A.floor()){return A.proposeStructuralFixes?.('grid',floor);}
+  function generateStructuralReportHtml(floor = A.floor(), project = A.state.project){
+    if(!A.engineeringReport)return '<p>Use the Structure workspace for current calculation reports.</p>';
+    const r=A.engineeringReport(project),e=A.escapeHtml;return '<h1>Structural planning calculations</h1><p>'+e(r.scope)+'</p><p>'+e(r.basis.location)+' · '+e(r.basis.seismicCode)+'</p><p>Gravity balance error: '+r.gravity.balanceError.toFixed(3)+' kN</p><table><thead><tr><th>Member</th><th>Computed check</th><th>Status</th></tr></thead><tbody>'+r.checks.map(c=>'<tr><td>'+e(c.id)+'</td><td>'+e(c.check)+'</td><td>'+e(c.status)+'</td></tr>').join('')+'</tbody></table><h2>Issues / required review</h2><ul>'+r.issues.map(i=>'<li>'+e(i.message)+'</li>').join('')+r.requiredReviews.map(i=>'<li>'+e(i)+' — not computed</li>').join('')+'</ul>';
   }
-
-  // ── Auto-Framing Generator (from Walls & Rooms) ──────────────
-  function autoGenerateFraming(floor = A.floor(), project = A.state.project) {
-    A.checkpoint();
-    floor.columns ||= [];
-    floor.beams ||= [];
-
-    const points = [];
-    (floor.walls || []).forEach(w => {
-      points.push({ x: w.x1, y: w.y1 });
-      points.push({ x: w.x2, y: w.y2 });
-      const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
-      if (len > 450) {
-        const parts = Math.ceil(len / 420);
-        for (let i = 1; i < parts; i++) {
-          points.push({
-            x: w.x1 + ((w.x2 - w.x1) * i) / parts,
-            y: w.y1 + ((w.y2 - w.y1) * i) / parts
-          });
-        }
-      }
-    });
-
-    (floor.rooms || []).forEach(r => {
-      points.push({ x: r.x, y: r.y });
-      points.push({ x: r.x + r.w, y: r.y });
-      points.push({ x: r.x + r.w, y: r.y + r.d });
-      points.push({ x: r.x, y: r.y + r.d });
-    });
-
-    const clusteredNodes = [];
-    points.forEach(p => {
-      const match = clusteredNodes.find(c => Math.hypot(c.x - p.x, c.y - p.y) < 40);
-      if (!match) {
-        clusteredNodes.push({ x: A.snap(p.x), y: A.snap(p.y) });
-      }
-    });
-
-    floor.columns = [];
-    floor.beams = [];
-
-    const defaultColW = A.COLUMN_DEFAULT_WIDTH || 23;
-    const defaultColD = A.COLUMN_DEFAULT_DEPTH || 30;
-    const defaultColH = A.COLUMN_DEFAULT_HEIGHT || 300;
-
-    clusteredNodes.forEach((node, idx) => {
-      const colId = A.uid();
-      floor.columns.push({
-        id: colId,
-        type: 'column',
-        name: `Column C${idx + 1}`,
-        tag: `C${idx + 1}`,
-        x: node.x - defaultColW / 2,
-        y: node.y - defaultColD / 2,
-        w: defaultColW,
-        d: defaultColD,
-        height: defaultColH,
-        shape: 'rect',
-        material: 'RCC M25',
-        steelGrade: 'Fe500',
-        rebarSpec: '4-T16 + 8mm stirrups @ 150 c/c',
-        footingWidth: 120,
-        footingDepth: 120,
-        footingThickness: 35,
-        color: '#24332d'
-      });
-    });
-
-    let beamIdx = 1;
-    for (let i = 0; i < floor.columns.length; i++) {
-      for (let j = i + 1; j < floor.columns.length; j++) {
-        const c1 = colCenter(floor.columns[i]);
-        const c2 = colCenter(floor.columns[j]);
-        const d = dist(c1, c2);
-
-        const isAligned = Math.abs(c1.x - c2.x) < 25 || Math.abs(c1.y - c2.y) < 25;
-        if (d <= 580 && d >= 120 && isAligned) {
-          const blocked = floor.columns.some((k, kIdx) => {
-            if (kIdx === i || kIdx === j) return false;
-            const ck = colCenter(k);
-            const cross = Math.abs((c2.y - c1.y) * ck.x - (c2.x - c1.x) * ck.y + c2.x * c1.y - c2.y * c1.x) / d;
-            const dot = ((ck.x - c1.x) * (c2.x - c1.x) + (ck.y - c1.y) * (c2.y - c1.y)) / (d * d);
-            return cross < 20 && dot > 0.05 && dot < 0.95;
-          });
-
-          if (!blocked) {
-            const spanM = d / 100;
-            const recDepth = Math.max(30, Math.ceil((spanM / 14) * 10) * 5);
-            floor.beams.push({
-              id: A.uid(),
-              type: 'beam',
-              name: `Beam B${beamIdx}`,
-              tag: `B${beamIdx}`,
-              x1: c1.x,
-              y1: c1.y,
-              x2: c2.x,
-              y2: c2.y,
-              width: A.BEAM_DEFAULT_WIDTH || 23,
-              depth: recDepth,
-              beamType: 'primary',
-              material: 'RCC M25',
-              steelGrade: 'Fe500',
-              rebarSpec: spanM > 4 ? 'Top: 2-T12, Bot: 3-T16, 8mm @ 150 c/c' : 'Top: 2-T12, Bot: 2-T16, 8mm @ 150 c/c',
-              color: '#2e493e'
-            });
-            beamIdx++;
-          }
-        }
-      }
-    }
-
-    classifyBeamHierarchy(floor, project, false);
-    analyzePillarOptimization(floor, project);
-
-    project.showStructure = true;
-    A.queueSave();
-    A.draw();
-    if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-    A.renderInspector();
-    A.updateCounts();
-    A.showToast(`Framing created: ${floor.columns.length} columns, ${floor.beams.length} beams`);
-  }
-
-  // ── Beam Hierarchy Classification (Primary vs Secondary vs Cantilever) ──
-  function classifyBeamHierarchy(floor = A.floor(), project = A.state.project, autoResize = false) {
-    const columns = floor.columns || [];
-    const beams = floor.beams || [];
-    if (!beams.length) return { primary: [], secondary: [], cantilever: [] };
-
-    const colCenters = columns.map(c => ({ id: c.id, ...colCenter(c), raw: c }));
-
-    function getSupportingColumn(pt) {
-      return colCenters.find(c => Math.hypot(c.x - pt.x, c.y - pt.y) <= 45);
-    }
-
-    function getIntersectingBeam(pt, ignoreId) {
-      return beams.find(b => {
-        if (b.id === ignoreId) return false;
-        const d = Math.hypot(b.x2 - b.x1, b.y2 - b.y1);
-        if (d < 1) return false;
-        const cross = Math.abs((b.y2 - b.y1) * pt.x - (b.x2 - b.x1) * pt.y + b.x2 * b.y1 - b.y2 * b.x1) / d;
-        const dot = ((pt.x - b.x1) * (b.x2 - b.x1) + (pt.y - b.y1) * (b.y2 - b.y1)) / (d * d);
-        return cross <= 30 && dot >= -0.05 && dot <= 1.05;
-      });
-    }
-
-    let pbIdx = 1, sbIdx = 1, cbIdx = 1;
-
-    beams.forEach(b => {
-      const p1 = { x: b.x1, y: b.y1 };
-      const p2 = { x: b.x2, y: b.y2 };
-
-      const col1 = getSupportingColumn(p1);
-      const col2 = getSupportingColumn(p2);
-
-      let type = 'primary';
-      if (col1 && col2) {
-        type = 'primary';
-      } else {
-        const beam1 = !col1 ? getIntersectingBeam(p1, b.id) : null;
-        const beam2 = !col2 ? getIntersectingBeam(p2, b.id) : null;
-        const sup1 = col1 || beam1;
-        const sup2 = col2 || beam2;
-
-        if (sup1 && sup2) {
-          type = 'secondary';
-        } else if (sup1 || sup2) {
-          type = 'cantilever';
-        } else {
-          type = 'secondary';
-        }
-      }
-
-      b.beamType = type;
-      const spanM = Math.hypot(b.x2 - b.x1, b.y2 - b.y1) / 100;
-
-      if (type === 'primary') {
-        b.tag = `PB${pbIdx++}`;
-        b.name = `Primary Beam ${b.tag}`;
-        if (autoResize) {
-          b.width = b.width || 23;
-          b.depth = Math.max(35, Math.ceil((spanM / 13) * 10) * 5); // L/13
-          b.rebarSpec = spanM > 4.2 ? 'Top: 2-T12, Bot: 3-T16, 8mm @ 150 c/c' : 'Top: 2-T12, Bot: 2-T16, 8mm @ 150 c/c';
-        }
-      } else if (type === 'secondary') {
-        b.tag = `SB${sbIdx++}`;
-        b.name = `Secondary Beam ${b.tag}`;
-        if (autoResize) {
-          b.width = b.width || 23;
-          b.depth = Math.max(25, Math.ceil((spanM / 16) * 10) * 5); // L/16
-          b.rebarSpec = 'Top: 2-T10, Bot: 2-T12, 8mm @ 200 c/c';
-        }
-      } else {
-        b.tag = `CB${cbIdx++}`;
-        b.name = `Cantilever Beam ${b.tag}`;
-        if (autoResize) {
-          b.width = b.width || 23;
-          b.depth = Math.max(30, Math.ceil((spanM / 7) * 10) * 5); // L/7
-          b.rebarSpec = 'Top: 3-T16, Bot: 2-T12, 8mm @ 125 c/c';
-        }
-      }
-    });
-
-    const res = {
-      primary: beams.filter(b => b.beamType === 'primary'),
-      secondary: beams.filter(b => b.beamType === 'secondary'),
-      cantilever: beams.filter(b => b.beamType === 'cantilever')
-    };
-
-    if (autoResize) {
-      A.queueSave();
-      A.draw();
-      A.renderInspector();
-      if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-      A.showToast(`Classified: ${res.primary.length} Primary (PB), ${res.secondary.length} Secondary (SB), ${res.cantilever.length} Cantilever (CB)`);
-    }
-
-    return res;
-  }
-
-  // ── Pillar Optimization & Redundancy Analysis ────────────────
-  function analyzePillarOptimization(floor = A.floor(), project = A.state.project) {
-    const columns = floor.columns || [];
-    const beams = floor.beams || [];
-    const walls = floor.walls || [];
-
-    if (!columns.length) {
-      return {
-        columns: [],
-        redundantCandidates: [],
-        coreCount: 0,
-        redundantCount: 0,
-        highStressCount: 0,
-        optimalCount: 0,
-        potentialSavings: { concreteM3: 0, steelKg: 0, footings: 0, estCostInr: 0 }
-      };
-    }
-
-    const colCenters = columns.map(c => ({ id: c.id, ...colCenter(c), raw: c }));
-
-    function getConnectedWalls(col) {
-      const cc = colCenter(col);
-      return walls.filter(w => {
-        const d1 = Math.hypot(w.x1 - cc.x, w.y1 - cc.y);
-        const d2 = Math.hypot(w.x2 - cc.x, w.y2 - cc.y);
-        return d1 <= 45 || d2 <= 45;
-      });
-    }
-
-    function isCornerOrJunction(col) {
-      const conn = getConnectedWalls(col);
-      if (conn.length >= 3) return { isCore: true, reason: '3/4-way wall junction' };
-      if (conn.length === 2) {
-        const cc = colCenter(col);
-        const v1 = {
-          x: Math.hypot(conn[0].x1 - cc.x, conn[0].y1 - cc.y) <= 45 ? conn[0].x2 - conn[0].x1 : conn[0].x1 - conn[0].x2,
-          y: Math.hypot(conn[0].x1 - cc.x, conn[0].y1 - cc.y) <= 45 ? conn[0].y2 - conn[0].y1 : conn[0].y1 - conn[0].y2
-        };
-        const v2 = {
-          x: Math.hypot(conn[1].x1 - cc.x, conn[1].y1 - cc.y) <= 45 ? conn[1].x2 - conn[1].x1 : conn[1].x1 - conn[1].x2,
-          y: Math.hypot(conn[1].x1 - cc.x, conn[1].y1 - cc.y) <= 45 ? conn[1].y2 - conn[1].y1 : conn[1].y1 - conn[1].y2
-        };
-        const l1 = Math.hypot(v1.x, v1.y) || 1;
-        const l2 = Math.hypot(v2.x, v2.y) || 1;
-        const cosAngle = Math.abs((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
-        if (cosAngle < 0.65) {
-          return { isCore: true, reason: 'Perimeter structural corner' };
-        }
-      }
-      return { isCore: false, reason: '' };
-    }
-
-    const redundantCandidates = [];
-    const processedIds = new Set();
-
-    columns.forEach(col => {
-      const cc = colCenter(col);
-      const cornerCheck = isCornerOrJunction(col);
-
-      const hasCantilever = beams.some(b => b.beamType === 'cantilever' && (
-        Math.hypot(b.x1 - cc.x, b.y1 - cc.y) <= 45 || Math.hypot(b.x2 - cc.x, b.y2 - cc.y) <= 45
-      ));
-
-      if (hasCantilever) {
-        col.optimizationStatus = 'essential';
-        col.redundancyReason = 'Supports cantilever overhang beam';
-        return;
-      }
-
-      if (cornerCheck.isCore) {
-        col.optimizationStatus = 'essential';
-        col.redundancyReason = cornerCheck.reason;
-        return;
-      }
-
-      if (col.utilization > 80) {
-        col.optimizationStatus = 'high-stress';
-        col.redundancyReason = `High axial utilization (${col.utilization}%)`;
-        return;
-      }
-
-      const neighbors = colCenters
-        .filter(o => o.id !== col.id)
-        .map(o => ({ ...o, distCm: Math.hypot(o.x - cc.x, o.y - cc.y) }))
-        .sort((a, b) => a.distCm - b.distCm);
-
-      const closest = neighbors[0];
-
-      if (closest && closest.distCm < 260 && !processedIds.has(closest.id)) {
-        const c1 = cc;
-        const dx = closest.x - c1.x, dy = closest.y - c1.y;
-        const len = closest.distCm;
-
-        const otherNeighbors = neighbors.slice(1).filter(n => n.distCm <= 550);
-        let maxSpanAfterRemoval = len;
-
-        const oppNeighbor = otherNeighbors.find(n => {
-          const v = { x: n.x - c1.x, y: n.y - c1.y };
-          const dot = (dx * v.x + dy * v.y) / (len * (n.distCm || 1));
-          return dot < -0.7;
-        });
-
-        if (oppNeighbor) {
-          maxSpanAfterRemoval = len + oppNeighbor.distCm;
-        }
-
-        if (maxSpanAfterRemoval <= 550) {
-          col.optimizationStatus = 'redundant';
-          const spanM = (closest.distCm / 100).toFixed(1);
-          const mergedM = (maxSpanAfterRemoval / 100).toFixed(1);
-          col.redundancyReason = `Spaced only ${spanM}m from ${closest.raw.tag || 'neighbor'}. Removal merges continuous span to ${mergedM}m (safe, ≤5.5m).`;
-          redundantCandidates.push({
-            id: col.id,
-            col,
-            tag: col.tag || col.name,
-            neighborTag: closest.raw.tag || 'neighbor',
-            distM: spanM,
-            mergedSpanM: mergedM,
-            reason: col.redundancyReason
-          });
-          processedIds.add(col.id);
-          return;
-        }
-      }
-
-      const tribArea = calculateColumnTributaryArea(col, columns, floor);
-      if (tribArea < 3.2 && (!closest || closest.distCm >= 150)) {
-        col.optimizationStatus = 'redundant';
-        col.redundancyReason = `Low tributary area (${tribArea.toFixed(1)} m²). Non-load-bearing intermediate pillar.`;
-        redundantCandidates.push({
-          id: col.id,
-          col,
-          tag: col.tag || col.name,
-          distM: closest ? (closest.distCm / 100).toFixed(1) : '2.0',
-          mergedSpanM: '4.5',
-          reason: col.redundancyReason
-        });
-        processedIds.add(col.id);
-        return;
-      }
-
-      col.optimizationStatus = 'optimal';
-      col.redundancyReason = 'Optimal grid spacing (3.0m - 5.0m span)';
-    });
-
-    const redundantCount = redundantCandidates.length;
-    const coreCount = columns.filter(c => c.optimizationStatus === 'essential').length;
-    const highStressCount = columns.filter(c => c.optimizationStatus === 'high-stress').length;
-    const optimalCount = columns.filter(c => c.optimizationStatus === 'optimal').length;
-
-    const concreteM3Savings = Math.round(redundantCount * 0.48 * 10) / 10;
-    const steelKgSavings = Math.round(redundantCount * 70);
-    const costInrSavings = redundantCount * 28000;
-
-    return {
-      columns,
-      redundantCandidates,
-      redundantCount,
-      coreCount,
-      highStressCount,
-      optimalCount,
-      potentialSavings: {
-        concreteM3: concreteM3Savings,
-        steelKg: steelKgSavings,
-        footings: redundantCount,
-        estCostInr: costInrSavings
-      }
-    };
-  }
-
-  // ── Pillar Auto-Reduction Engine ─────────────────────────────
-  function autoReduceRedundantPillars(floor = A.floor(), project = A.state.project) {
-    const optimization = analyzePillarOptimization(floor, project);
-    if (!optimization.redundantCandidates.length) {
-      A.showToast('✓ Pillar grid is already optimal! No redundant pillars found.');
-      return;
-    }
-
-    A.checkpoint();
-    const removedCount = optimization.redundantCandidates.length;
-    const redundantIds = new Set(optimization.redundantCandidates.map(c => c.id));
-
-    optimization.redundantCandidates.forEach(cand => {
-      const col = cand.col;
-      const cc = colCenter(col);
-
-      const connected = (floor.beams || []).filter(b => {
-        const d1 = Math.hypot(b.x1 - cc.x, b.y1 - cc.y);
-        const d2 = Math.hypot(b.x2 - cc.x, b.y2 - cc.y);
-        return d1 <= 45 || d2 <= 45;
-      });
-
-      if (connected.length === 2) {
-        const b1 = connected[0];
-        const b2 = connected[1];
-
-        const p1 = Math.hypot(b1.x1 - cc.x, b1.y1 - cc.y) <= 45 ? { x: b1.x2, y: b1.y2 } : { x: b1.x1, y: b1.y1 };
-        const p2 = Math.hypot(b2.x1 - cc.x, b2.y1 - cc.y) <= 45 ? { x: b2.x2, y: b2.y2 } : { x: b2.x1, y: b2.y1 };
-
-        const mergedSpanM = Math.hypot(p2.x - p1.x, p2.y - p1.y) / 100;
-        if (mergedSpanM <= 6.0) {
-          b1.x1 = p1.x; b1.y1 = p1.y;
-          b1.x2 = p2.x; b1.y2 = p2.y;
-          b1.depth = Math.max(35, Math.ceil((mergedSpanM / 13) * 10) * 5);
-          b1.rebarSpec = mergedSpanM > 4.2 ? 'Top: 2-T12, Bot: 3-T16, 8mm @ 150 c/c' : 'Top: 2-T12, Bot: 2-T16, 8mm @ 150 c/c';
-          floor.beams = floor.beams.filter(b => b.id !== b2.id);
-        }
-      }
-    });
-
-    floor.columns = floor.columns.filter(c => !redundantIds.has(c.id));
-
-    floor.columns.forEach((c, idx) => {
-      c.tag = `C${idx + 1}`;
-      c.name = `Column C${idx + 1}`;
-    });
-
-    classifyBeamHierarchy(floor, project, true);
-
-    A.queueSave();
-    A.draw();
-    if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-    A.renderInspector();
-    A.updateCounts();
-
-    const sav = optimization.potentialSavings;
-    A.showToast(`⚡ Reduced ${removedCount} redundant pillar(s)! Saved ~${sav.concreteM3}m³ concrete, ~${sav.steelKg}kg steel & ${sav.footings} footings.`);
-  }
-
-  // ── Pillar Grid Auto-Improvement (Straightening & Snapping) ────
-  function autoImprovePillarGrid(floor = A.floor(), project = A.state.project, toleranceCm = 25) {
-    const columns = floor.columns || [];
-    if (columns.length < 2) {
-      A.showToast('Not enough pillars to align grid.');
-      return;
-    }
-
-    A.checkpoint();
-    let snappedCols = 0;
-
-    const clustersX = [];
-    columns.forEach(col => {
-      const cx = col.x + (col.w || 23) / 2;
-      let cluster = clustersX.find(cl => Math.abs(cl.avg - cx) <= toleranceCm);
-      if (!cluster) {
-        cluster = { sum: 0, items: [], avg: cx };
-        clustersX.push(cluster);
-      }
-      cluster.items.push(col);
-      cluster.sum += cx;
-      cluster.avg = cluster.sum / cluster.items.length;
-    });
-
-    clustersX.forEach(cluster => {
-      if (cluster.items.length >= 2) {
-        const targetX = Math.round(cluster.avg / 10) * 10;
-        cluster.items.forEach(col => {
-          const oldX = col.x;
-          col.x = Math.round(targetX - (col.w || 23) / 2);
-          if (Math.abs(col.x - oldX) >= 1) snappedCols++;
-        });
-      }
-    });
-
-    const clustersY = [];
-    columns.forEach(col => {
-      const cy = col.y + (col.d || 30) / 2;
-      let cluster = clustersY.find(cl => Math.abs(cl.avg - cy) <= toleranceCm);
-      if (!cluster) {
-        cluster = { sum: 0, items: [], avg: cy };
-        clustersY.push(cluster);
-      }
-      cluster.items.push(col);
-      cluster.sum += cy;
-      cluster.avg = cluster.sum / cluster.items.length;
-    });
-
-    clustersY.forEach(cluster => {
-      if (cluster.items.length >= 2) {
-        const targetY = Math.round(cluster.avg / 10) * 10;
-        cluster.items.forEach(col => {
-          const oldY = col.y;
-          col.y = Math.round(targetY - (col.d || 30) / 2);
-          if (Math.abs(col.y - oldY) >= 1) snappedCols++;
-        });
-      }
-    });
-
-    (floor.beams || []).forEach(b => {
-      columns.forEach(col => {
-        const cc = colCenter(col);
-        if (Math.hypot(b.x1 - cc.x, b.y1 - cc.y) <= 35) {
-          b.x1 = cc.x; b.y1 = cc.y;
-        }
-        if (Math.hypot(b.x2 - cc.x, b.y2 - cc.y) <= 35) {
-          b.x2 = cc.x; b.y2 = cc.y;
-        }
-      });
-    });
-
-    classifyBeamHierarchy(floor, project, false);
-
-    A.queueSave();
-    A.draw();
-    if (A.state.viewMode === '3d') window.atelier3D?.requestRebuild();
-    A.renderInspector();
-    A.showToast(`✨ Pillar grid improved: Snapped ${snappedCols} pillar coordinate(s) onto straight orthogonal gridlines.`);
-  }
-
-  // ── HTML Structural Civil Engineering Report Generator ────────
-  function generateStructuralReportHtml(floor = A.floor(), project = A.state.project) {
-    const analysis = analyzeStructure(floor, project);
-    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const { summary, checks, columnDetails, beamDetails } = analysis;
-
-    const cementBags = Math.round(summary.totalConcreteM3 * 7.5);
-    const sandTons = (summary.totalConcreteM3 * 0.45 * 1.6).toFixed(1);
-    const aggTons = (summary.totalConcreteM3 * 0.90 * 1.6).toFixed(1);
-
-    return `
-      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:#18362a">${A.escapeHtml(project.name || 'Structural Project')}</div>
-          <div style="font-size:11px;color:#54645d">Level: <strong>${A.escapeHtml(floor.name || 'Ground floor')}</strong> &nbsp;·&nbsp; Date: ${date} &nbsp;·&nbsp; Standard: IS 456:2000 / ACI 318</div>
-        </div>
-        <div style="text-align:right">
-          <span class="${summary.status === 'pass' ? 'badge-pass' : summary.status === 'warn' ? 'badge-warn' : 'badge-fail'}" style="font-size:12px;padding:4px 10px">
-            ${summary.status === 'pass' ? '✓ MODELED CHECKS PASSED' : summary.status === 'warn' ? '⚠ PLANNING ADVISORY' : '✕ ACTION REQUIRED'} (${summary.score}/100)
-          </span>
-        </div>
-      </div>
-
-      <!-- KPI Summary Cards -->
-      <div class="report-kpi-grid">
-        <div class="report-kpi">
-          <div class="report-kpi-label">Columns (Pillars)</div>
-          <div class="report-kpi-val">${summary.columnCount}</div>
-          <div class="report-kpi-sub">${analysis.pillarOptimization?.coreCount || 0} Core · ${analysis.pillarOptimization?.redundantCount || 0} Redundant</div>
-        </div>
-        <div class="report-kpi">
-          <div class="report-kpi-label">Beams (PB / SB / CB)</div>
-          <div class="report-kpi-val">${summary.beamCount}</div>
-          <div class="report-kpi-sub">${analysis.beamHierarchy?.primary?.length || 0} PB · ${analysis.beamHierarchy?.secondary?.length || 0} SB · ${analysis.beamHierarchy?.cantilever?.length || 0} CB</div>
-        </div>
-        <div class="report-kpi">
-          <div class="report-kpi-label">Concrete Volume</div>
-          <div class="report-kpi-val">${summary.totalConcreteM3} m³</div>
-          <div class="report-kpi-sub">M25 Grade Mix</div>
-        </div>
-        <div class="report-kpi">
-          <div class="report-kpi-label">Reinforcement Steel</div>
-          <div class="report-kpi-val">${summary.totalSteelKg} kg</div>
-          <div class="report-kpi-sub">Fe500 Grade TMT</div>
-        </div>
-        <div class="report-kpi">
-          <div class="report-kpi-label">Factored Gravity Load</div>
-          <div class="report-kpi-val">${summary.estimatedTotalLoadKN} kN</div>
-          <div class="report-kpi-sub">Total Floor Dead + Live</div>
-        </div>
-        <div class="report-kpi">
-          <div class="report-kpi-label">Est. Cement Bags</div>
-          <div class="report-kpi-val">~${cementBags}</div>
-          <div class="report-kpi-sub">50kg Bags (M25)</div>
-        </div>
-      </div>
-
-      ${(analysis.pillarOptimization?.redundantCount > 0) ? `
-        <div style="margin:12px 0;padding:10px 14px;background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;font-size:11px;color:#9f1239;line-height:1.45">
-          <strong>⚡ Pillar Reduction &amp; Cost Optimization Potential:</strong><br>
-          ${analysis.pillarOptimization.redundantCount} closely spaced pillar(s) (&lt;2.5m spacing) can be safely eliminated. Removing them and connecting continuous beams saves <strong>~${analysis.pillarOptimization.potentialSavings.concreteM3} m³ concrete</strong>, <strong>~${analysis.pillarOptimization.potentialSavings.steelKg} kg reinforcement steel</strong>, and <strong>${analysis.pillarOptimization.potentialSavings.footings} isolated foundation footings</strong> (~₹${analysis.pillarOptimization.potentialSavings.estCostInr.toLocaleString('en-IN')}) with all spans strictly adhering to IS 456 limits (≤5.5m).
-        </div>
-      ` : ''}
-
-      <!-- Compliance Checks -->
-      <div class="report-section-title">
-        <span>1. Civil Code Compliance Checks (IS 456 &amp; NBC)</span>
-        <span style="font-size:11px;font-weight:normal;color:#596b63">Audit Score: ${summary.score}/100</span>
-      </div>
-      <div class="report-table-wrap">
-        <table class="report-table">
-          <thead>
-            <tr><th>Status</th><th>Engineering Guideline</th><th>Observation &amp; Statutory Recommendation</th></tr>
-          </thead>
-          <tbody>
-            ${checks.map(c => `
-              <tr>
-                <td><span class="${c.status === 'pass' ? 'badge-pass' : c.status === 'warn' ? 'badge-warn' : 'badge-fail'}">${c.status.toUpperCase()}</span></td>
-                <td><strong>${A.escapeHtml(c.name)}</strong></td>
-                <td>${A.escapeHtml(c.message)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Column Schedule -->
-      <div class="report-section-title">
-        <span>2. Column (Pillar) Schedule &amp; Axial Compression Capacity</span>
-        <span style="font-size:11px;font-weight:normal;color:#596b63">IS 456 cl. 39.3 ($P_{uz} = 0.4 f_{ck} A_c + 0.67 f_y A_{sc}$)</span>
-      </div>
-      <div class="report-table-wrap">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Tag</th><th>Role</th><th>Cross-Section</th><th>Trib. Area</th><th>Factored Load</th><th>Axial Capacity</th><th>Util.</th><th>Rebar Spec</th><th>Footing Size</th><th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${columnDetails.length === 0 ? '<tr><td colspan="10" style="text-align:center;color:var(--muted)">No columns defined. Use ⚡ Auto-Framing.</td></tr>' : columnDetails.map(c => `
-              <tr>
-                <td><strong>${A.escapeHtml(c.tag)}</strong></td>
-                <td><span class="${c.optimizationStatus === 'redundant' ? 'badge-redundant' : c.optimizationStatus === 'essential' ? 'badge-core' : 'badge-pass'}">${(c.optimizationStatus || 'optimal').toUpperCase()}</span></td>
-                <td>${c.wCm} × ${c.dCm} cm</td>
-                <td>${c.tributaryAreaM2} m²</td>
-                <td>${c.factoredLoadKN} kN</td>
-                <td>${c.capacityKN} kN</td>
-                <td><strong>${c.utilization}%</strong></td>
-                <td>${A.escapeHtml(c.rebar)}</td>
-                <td>${c.wCm >= 30 ? '140×140×40 cm' : '120×120×35 cm'}</td>
-                <td><span class="${c.status === 'pass' ? 'badge-pass' : c.status === 'warn' ? 'badge-warn' : 'badge-fail'}">${c.status.toUpperCase()}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Beam Schedule -->
-      <div class="report-section-title">
-        <span>3. Beam Schedule (Primary PB &amp; Secondary SB) &amp; Deflection Control</span>
-        <span style="font-size:11px;font-weight:normal;color:#596b63">IS 456 cl. 23.2.1 ($L/d$ limit: Cantilever ≤ 7, SS ≤ 20, Cont ≤ 26)</span>
-      </div>
-      <div class="report-table-wrap">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Tag</th><th>Hierarchy</th><th>Span (L)</th><th>Width × Depth</th><th>Actual L/d</th><th>Limit L/d</th><th>Min Depth Reqd</th><th>Reinforcement Spec</th><th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${beamDetails.length === 0 ? '<tr><td colspan="9" style="text-align:center;color:var(--muted)">No beams defined. Use ⚡ Auto-Framing.</td></tr>' : beamDetails.map(b => `
-              <tr>
-                <td><strong>${A.escapeHtml(b.tag)}</strong></td>
-                <td><span class="${b.beamType === 'secondary' ? 'badge-sb' : b.beamType === 'cantilever' ? 'badge-cb' : 'badge-pb'}">${(b.typeLabel || 'Primary').toUpperCase()}</span></td>
-                <td>${b.spanM} m</td>
-                <td>${b.widthCm} × ${b.depthCm} cm</td>
-                <td>${b.actualLd}</td>
-                <td>≤ ${b.maxLd}</td>
-                <td>${b.minRequiredDepthCm} cm</td>
-                <td>${A.escapeHtml(b.rebar)}</td>
-                <td><span class="${b.status === 'pass' ? 'badge-pass' : b.status === 'warn' ? 'badge-warn' : 'badge-fail'}">${b.status.toUpperCase()}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- BOQ Material Estimation -->
-      <div class="report-section-title">
-        <span>4. Estimated Material Takeoff (BOQ)</span>
-        <span style="font-size:11px;font-weight:normal;color:#596b63">Floor Structural Components</span>
-      </div>
-      <div class="report-table-wrap">
-        <table class="report-table">
-          <thead>
-            <tr><th>Material Item</th><th>Estimated Quantity</th><th>Unit</th><th>Design Specification</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Ready-Mix / Cast Concrete</td><td><strong>${summary.totalConcreteM3}</strong></td><td>m³</td><td>M25 Grade (1:1:2 design mix, 25 N/mm²)</td></tr>
-            <tr><td>TMT Reinforcing Steel Bars</td><td><strong>${summary.totalSteelKg}</strong></td><td>kg</td><td>Fe500 Grade deformed high-yield bars</td></tr>
-            <tr><td>Ordinary Portland Cement</td><td><strong>~${cementBags}</strong></td><td>Bags</td><td>50 kg bags (approx. 7.5 bags / m³)</td></tr>
-            <tr><td>Coarse Aggregate (20mm down)</td><td><strong>~${aggTons}</strong></td><td>Metric Tons</td><td>Clean crushed granite / basalt</td></tr>
-            <tr><td>Fine Aggregate (Sand / M-Sand)</td><td><strong>~${sandTons}</strong></td><td>Metric Tons</td><td>Zone-II river sand or washed M-sand</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div style="margin-top:14px;padding:10px 12px;background:#fbfaf6;border:1px solid var(--line);border-radius:6px;font-size:10px;color:#56675f;line-height:1.4">
-        <strong>Preliminary planning estimates:</strong> Assumes a 150 mm slab, 1 kN/m² finishes, 2 kN/m² residential live load, approximate wall loads, and a 1.5 load factor. Column steel area uses the first count × T-diameter in the reinforcement field; unrecognized text falls back to 1.5%. Soil bearing is assumed at 180 kN/m². This simplified model does not solve the building frame, cumulative floor loads, moments, seismic/wind actions, or footing design. Final design requires a structural engineer.
-      </div>
-    `;
-  }
-
-  // ── Show Structural Report in Modal (Replaces text file download) ──
   function showStructuralReportModal(floor = A.floor(), project = A.state.project) {
     const modal = A.$('#structuralReportModal');
     const content = A.$('#structuralReportContent');

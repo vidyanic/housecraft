@@ -16,6 +16,7 @@
     document.addEventListener('focusout',()=>{s.editSession=null;});
     function captureEdit(e){
       const el=e.target;
+      if(el.closest('[data-structural-editor]'))return;
       if(el.id?.startsWith('service')||el.id==='routeDrawElevation')return;
       if(!el.matches('input,select,textarea')||el.disabled||el.type==='file'||['catalogSearch','objectSearch','drawingScale','gridAlignToleranceRange'].includes(el.id))return;
       const key=el.dataset.key;

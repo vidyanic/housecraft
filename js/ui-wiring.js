@@ -38,7 +38,7 @@
 
   function fitPlan() {
     const s=S(),bounds=A.planBounds(),stage=s.stage,r=stage.getBoundingClientRect(),pad=75;
-    if(s.viewMode==='3d'){const span=Math.max(bounds.maxX-bounds.minX,bounds.maxY-bounds.minY);s.project.camera.zoom=Math.max(.2,Math.min(.9,Math.min((r.width-pad*2)/(span*1.25||1),(r.height-pad*2)/(span*.82||1))));updateZoom();window.atelier3D?.rebuild();window.atelier3D?.setCamera(s.project.camera);return}
+    if(s.viewMode==='3d'){window.atelier3D?.fitCamera(s.project.camera);updateZoom();return}
     s.scale=Math.max(.18,Math.min(1.2,Math.min((r.width-pad*2)/(bounds.maxX-bounds.minX||1),(r.height-pad*2)/(bounds.maxY-bounds.minY||1))));
     s.offset={x:(r.width-(bounds.maxX-bounds.minX)*s.scale)/2-bounds.minX*s.scale,y:(r.height-(bounds.maxY-bounds.minY)*s.scale)/2-bounds.minY*s.scale};
     updateZoom();A.draw();
@@ -60,7 +60,7 @@
     A.$('#addFloor').onclick=openFloorModal;A.$('#floorLabel').textContent=A.floor().name;
   }
 
-  function updateCounts() { const n=A.allEntities().length;A.$('#objectCount').textContent=`${n} object${n===1?'':'s'}`; }
+  function updateCounts() { const n=A.allEntities().length+(A.floor().grids?.length||0);A.$('#objectCount').textContent=`${n} object${n===1?'':'s'}`; }
 
   // ── Full UI sync ─────────────────────────────────────────────
   function syncUI() {
@@ -348,8 +348,8 @@
       const name=A.$('#newFloorName').value.trim()||`Floor ${s.project.floors.length+1}`,elevation=A.toCm(A.$('#newFloorElevation').value);
       if(!Number.isFinite(elevation)){A.showToast('Enter a valid floor elevation');return;}
       A.checkpoint();let next={id:A.uid(),name,elevation,rooms:[],walls:[],items:[],dimensions:[],columns:[],beams:[]};
-      if(A.$('#copyFloorContents').checked){next=A.deep(A.floor());const remap=new Map();for(const key of ['rooms','walls','items','dimensions','columns','beams'])for(const o of next[key]||[]){const old=o.id;o.id=A.uid();remap.set(old,o.id);}for(const key of ['rooms','items','dimensions'])for(const o of next[key]||[]){if(o.hostWallId)o.hostWallId=remap.get(o.hostWallId);if(o.boundaryWallIds)o.boundaryWallIds=o.boundaryWallIds.map(id=>remap.get(id)).sort();for(const end of [1,2])if(o['anchor'+end])o['anchor'+end].entityId=remap.get(o['anchor'+end].entityId);}Object.assign(next,{id:A.uid(),name,elevation});}
-      s.project.floors.push(next);s.project.activeFloor=s.project.floors.length-1;s.selected=null;s.selectedIds.clear();A.$('#floorModal').classList.remove('show');syncUI();fitPlan();A.queueSave();A.showToast(`${name} added`);
+      if(A.$('#copyFloorContents').checked){next=A.deep(A.floor());const remap=new Map();for(const key of ['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls','grids'])for(const o of next[key]||[]){const old=o.id;o.id=A.uid();remap.set(old,o.id);}for(const key of ['rooms','items','dimensions','beams','loads'])for(const o of next[key]||[]){for(const k of ['startColumnId','endColumnId','columnId'])if(o[k])o[k]=remap.get(o[k])||'';if(o.hostWallId)o.hostWallId=remap.get(o.hostWallId);if(o.boundaryWallIds)o.boundaryWallIds=o.boundaryWallIds.map(id=>remap.get(id)).sort();for(const end of [1,2])if(o['anchor'+end])o['anchor'+end].entityId=remap.get(o['anchor'+end].entityId);}Object.assign(next,{id:A.uid(),name,elevation});}
+      s.project.floors.push(next);A.normalizeStructure?.(s.project);s.project.activeFloor=s.project.floors.length-1;s.selected=null;s.selectedIds.clear();A.$('#floorModal').classList.remove('show');syncUI();fitPlan();A.queueSave();A.showToast(`${name} added`);
     };
     A.$('#floorModal').addEventListener('click',e=>{if(e.target.id==='floorModal')e.currentTarget.classList.remove('show')});
 

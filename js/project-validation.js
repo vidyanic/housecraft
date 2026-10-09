@@ -17,7 +17,9 @@
       id(f); f.name ||= 'Floor'; f.elevation ??= 0;
       if(typeof f.name!=='string')throw new Error('Floor name must be text.');
       if (!Number.isFinite(f.elevation)) throw new Error('Invalid floor elevation.');
-      for (const key of ['rooms','walls','items','dimensions','columns','beams']) {
+      if(f.diaphragm!=null&&!['none','rigid'].includes(f.diaphragm))throw Error('Invalid diaphragm assumption.');
+      if(f.isRoof!=null&&typeof f.isRoof!=='boolean')throw Error('Invalid roof level flag.');
+      for (const key of ['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls','grids']) {
         f[key] ??= [];
         if (!Array.isArray(f[key])) throw new Error(`${key} must be an array.`);
         count += f[key].length;
@@ -25,6 +27,15 @@
         for (const o of f[key]) {
           if (!object(o)) throw new Error(`Invalid ${key} object.`);
           id(o);
+          if(['loads','grids'].includes(key)){
+            if(o.name!=null&&typeof o.name!=='string')throw Error('Invalid structural object name.');
+            if(key==='loads'&&(!['dead','live'].includes(o.case)||!Number.isFinite(o.value)||o.value<0||!Number.isFinite(o.x)||!Number.isFinite(o.y)))throw Error('Invalid structural point load.');
+            if(key==='grids'&&(!['x','y'].includes(o.axis)||!Number.isFinite(o.position)))throw Error('Invalid structural grid.');
+            if(o.columnId!=null&&typeof o.columnId!=='string')throw Error('Invalid load support reference.');
+            continue;
+          }
+          for(const ref of ['startColumnId','endColumnId'])if(o[ref]!=null&&typeof o[ref]!=='string')throw Error('Invalid beam joint reference.');
+          for(const k of ['cover','tieDiameter','barDiameter','deadLoad','liveLoad'])if(o[k]!=null&&(!Number.isFinite(o[k])||o[k]<0))throw Error('Invalid structural property: '+k);
           if(o.system!=null&&!['cold-water','hot-water','waste','soil','rainwater','electrical'].includes(o.system))throw new Error('Invalid service system.');
           if(o.mountSurface!=null&&!['floor','wall','roof'].includes(o.mountSurface))throw new Error('Invalid installation surface.');
           if(o.circuit!=null&&typeof o.circuit!=='string')throw new Error('Invalid service label.');
@@ -35,7 +46,7 @@
           for(const prop of ['name','type','shape','tag','material','steelGrade','rebarSpec'])if(o[prop]!=null&&typeof o[prop]!=='string')throw new Error(`Invalid ${prop} text.`);
           if(o.color!=null&&!/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(o.color))throw new Error('Object colors must be hex colors.');
           if(o.polygon!=null&&(!Array.isArray(o.polygon)||o.polygon.length<3||o.polygon.length>2000||o.polygon.some(p=>!object(p)||!Number.isFinite(p.x)||!Number.isFinite(p.y))))throw new Error('Invalid room polygon.');
-          const rect = ['rooms','items','columns'].includes(key);
+          const rect = ['rooms','items','columns','slabs'].includes(key);
           for (const prop of rect ? ['x','y','w','d'] : ['x1','y1','x2','y2']) {
             if (!Number.isFinite(o[prop]) || Math.abs(o[prop]) > 1000000 || (['w','d'].includes(prop) && o[prop] <= 0)) throw new Error(`Invalid ${prop} in ${o.name || key}.`);
           }
@@ -51,7 +62,9 @@
     const numeric=(obj,keys)=>{for(const key of keys)if(obj?.[key]!=null&&!Number.isFinite(obj[key]))throw new Error(`Invalid ${key} setting.`);};
     numeric(p.camera,['yaw','pitch','zoom']);numeric(p.sun,['time','week','azimuth','altitude','intensity']);numeric(p.builtUp,['width','depth','originX','originY']);numeric(p.site,['width','depth']);numeric(p,['north']);
     if(p.sun?.location!=null&&!object(p.sun.location))throw new Error('Invalid solar location.');
+    if(p.structuralBasis?.soilVerified!=null&&typeof p.structuralBasis.soilVerified!=='boolean')throw Error('Invalid site investigation flag.');
     numeric(p.sun?.location,['latitude','longitude','timezone']);
+    if(p.structuralBasis!=null){if(!object(p.structuralBasis))throw Error('Invalid structural basis.');const b=p.structuralBasis;numeric(b,['bearingKpa','importance','responseReduction','slabThickness','finishLoad','liveLoad','liveParticipation','concreteDensity','masonryDensity','storeyHeight','columnStiffness','beamStiffness','zoneFactor','damping','driftLimit']);for(const k of ['bearingKpa','importance','responseReduction','slabThickness','storeyHeight','concreteDensity','masonryDensity','columnStiffness','beamStiffness','zoneFactor','damping','driftLimit'])if(b[k]!=null&&b[k]<=0)throw Error('Invalid structural basis: '+k);for(const k of ['finishLoad','liveLoad'])if(b[k]!=null&&b[k]<0)throw Error('Invalid structural load.');for(const k of ['liveParticipation','columnStiffness','beamStiffness'])if(b[k]!=null&&(b[k]<0||b[k]>1))throw Error('Invalid structural fraction.');if(b.zone!=null&&!['II','III','IV','V'].includes(b.zone))throw Error('Invalid seismic zone.');if(b.soilClass!=null&&!['I','II','III'].includes(b.soilClass))throw Error('Invalid soil class.');}
     if(p.builtUp&&(p.builtUp.width<=0||p.builtUp.depth<=0))throw new Error('Built-up dimensions must be positive.');
     return p;
   }

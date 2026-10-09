@@ -50,11 +50,19 @@ Choose a scale of 1:50, 1:100, or 1:200, then export SVG or PDF. Drawings includ
 
 Print drawing also uses the browser's native print workflow. Exports are concept drawings rather than construction documents.
 
-## Structural estimates
+## Structural planning
 
-The column check reports uncapped utilization and marks modeled overload as a failure. Material grades are read from their fields. Longitudinal steel area uses the first bar count/diameter in the reinforcement text; unrecognized text uses a disclosed 1.5% assumption.
+**Architecture, Structure, Services and 3D** share one building model. Structure provides a separate drawing workspace with its own camera, faded architecture, grid axes, explicit rectangular/polygonal slab panels, RC wall objects, point loads, member schedules, adjacent-floor overlays, and X/Y elevation projections. Click a member or schedule row to edit its cm coordinates, sections, reinforcement, support condition and column connections. Beam endpoints follow column IDs. A cantilever has one connected column and a free endpoint. Floor copies remap member, panel and load IDs.
 
-The model uses assumed residential slab, finish, live, and approximate wall loads. It does not solve building-frame moments, cumulative floor loads, wind/seismic actions, or foundation design. Assumptions are visible in the inspector and report. Results describe modeled checks, not structural certification.
+The default basis is **Lucknow, India, Zone III**. Soil class II and 150 kPa bearing capacity are **provisional editable inputs**, not site-test results. References are IS 456:2000, IS 875 Part 1:2026 / Part 2:1987, IS 1893 Part 1:2016 and IS 13920:2016. Reference editions and outstanding amendment/table verification are recorded in every report. RCC density 25 kN/m³, masonry density 19 kN/m³, residential live load 2 kN/m² and finish load 1 kN/m² are editable assumptions; they do not constitute a complete occupancy/material load library.
+
+**Calculate screening** conserves slab tributary areas by clipping nearest-support regions to panel boundaries, accumulates gravity loads down aligned columns by elevation, sums all longitudinal bar groups, and checks basic axial capacity, steel ratio, bearing pressure and span/effective depth. Explicit panels replace architectural room proxies. These checks use a preliminary direct-to-column load distribution.
+
+**Run modal / CQC** adds a linear elastic 3D Euler–Bernoulli frame calculation with explicit supports, optional rigid floor constraints, cracked stiffness factors, massless-DOF condensation, eigenmodes, X/Y participation, BIS 5% spectra, CQC response, base-shear scaling, drift and seismic member-force envelopes. Column/wall mass is apportioned to bounding floor levels; the roof flag excludes seismic live load, and panel live-load participation respects the 25/50% thresholds. A separate 97-case static screening envelope includes gravity factors, directional signs, 100/30 variants and ±5% plan eccentricity. Static results are labelled screening because Lucknow falls outside the 2016 equivalent-static eligibility.
+
+**Propose fixes** creates a clone and displays changed geometry and failed-check counts before Apply. Generated framing adds members without replacing manual framing. Section proposals preserve IDs, reinforcement, column centres and locks and only increase sizes. Grid changes use explicit axes and connected end IDs. Apply rejects stale proposals and new failed checks and produces one undo action. Automatic column deletion is disabled because the available checks cannot establish a safe alternate load path.
+
+Calculation JSON exports the input basis, node/member model, numerical results, named checks, issues and required reviews. The solver is limited to 80 nodes and 96 mass DOFs. Unstable/disconnected models stop calculation. RC wall shell stiffness, actual slab-to-beam distribution, full bending/shear reinforcement design, biaxial/slender-column design, confinement/joint detailing, amplified static eccentricity, vertical earthquake, P-delta, wind and complete foundation design remain **uncomputed**, and reports say so. Plan projections are drawings rather than cut-section or shell analyses. Application benchmarks are not independent structural validation or construction approval.
 
 ## Accessibility
 
@@ -63,9 +71,11 @@ The searchable Objects list supports keyboard selection of rooms, walls, furnitu
 ## Validate
 
 Run `node tests/regression.cjs` for model and geometry checks plus script parsing.
+Run `node tests/engineering.cjs` for tributary/load conservation, frame elasticity, eigenmodes, rigid diaphragms, mass participation, spectra, combinations and proposal benchmarks.
 
 With the server running, open `tests/browser.html` and select **Run browser checks**. It exercises the actual app in an iframe with separate test storage, including imports, undo, measurements, cancellation, hosted openings, rooms, floor copying, recovery, PDF/SVG output, keyboard access, and incremental 3D updates.
 
 `tests/responsive.html` provides 1440 × 900 desktop, 820 × 900 tablet, and 390 × 844 mobile previews.
+`tests/structural-demo.html` provides an isolated two-storey Lucknow frame with structural plan, elevation, 3D and modal previews at those sizes.
 
 See [INDEX.md](INDEX.md) for the module map and [PROJECT_SPEC.md](PROJECT_SPEC.md) for the current design boundaries. Three.js is covered by [vendor/THREE-LICENSE.txt](vendor/THREE-LICENSE.txt).

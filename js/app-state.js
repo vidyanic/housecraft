@@ -54,7 +54,7 @@
   }
   function allEntities(f = floor()) {
     if (!f) return [];
-    return [...f.rooms, ...f.walls, ...f.items, ...f.dimensions, ...(f.columns || []), ...(f.beams || [])];
+    return [...f.rooms, ...f.walls, ...f.items, ...f.dimensions, ...(f.columns || []), ...(f.beams || []),...(f.slabs||[]),...(f.loads||[]),...(f.structuralWalls||[])];
   }
   function findEntity(id) { return allEntities().find(o => o.id === id); }
 

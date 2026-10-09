@@ -1415,6 +1415,10 @@
         upsert(prefix+'item:'+item.id,{...item,hiddenRoof},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject(item)),elevation,true);
       });
       if(projectData.showStructure!==false){
+        (f.structuralWalls||[]).forEach(wall=>upsert(prefix+'rc-wall:'+wall.id,wall,g=>buildWalls(g,{...f,walls:[wall],items:[]},projectData.camera.wallMode||'cutaway'),elevation));
+        (f.slabs||[]).forEach(slab=>upsert(prefix+'structural-slab:'+slab.id,slab,g=>{
+          const material=pbr({material:'Concrete',color:'#a4b5bb'}),shape=new THREE.Shape();window.Atelier.structuralPolygon(slab).forEach((q,i)=>i?shape.lineTo(cm(q.x),-cm(q.y)):shape.moveTo(cm(q.x),-cm(q.y)));shape.closePath();const geometry=new THREE.ExtrudeGeometry(shape,{depth:cm(slab.thickness||15),bevelEnabled:false});geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material);mesh.position.y=cm(window.Atelier.structuralBasis(projectData).storeyHeight-(slab.thickness||15));mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.entityId=slab.id;g.add(mesh);
+        },elevation));
         (f.columns||[]).forEach(col=>upsert(prefix+'column:'+col.id,col,g=>g.add(buildColumn3D(col)),elevation));
         (f.beams||[]).forEach(beam=>upsert(prefix+'beam:'+beam.id,beam,g=>{const node=buildBeam3D(beam);if(node)g.add(node);},elevation));
       }
@@ -1423,7 +1427,11 @@
     addSelection(floorData);
     const bounds = bridge.planBounds();
     const cx = cm((bounds.minX + bounds.maxX) / 2), cz = cm((bounds.minY + bounds.maxY) / 2);
-    if(geometryChanged&&!objectDrag)controls.target.set(cx, cm(floorData.elevation||0)+.72, cz);
+    if(geometryChanged&&!objectDrag){
+      const sceneBounds=new THREE.Box3().setFromObject(design);
+      if(projectData.camera.allFloors&&!sceneBounds.isEmpty())sceneBounds.getCenter(controls.target);
+      else controls.target.set(cx, cm(floorData.elevation||0)+.72, cz);
+    }
     sun.target.position.set(cx, 0, cz); scene.add(sun.target);
     updateSun(projectData.sun);
     updateMirrorReflections();
@@ -1454,6 +1462,20 @@
     );
     controls.update();
     wakeRenderLoop(3);
+  }
+
+  function fitCamera(state) {
+    rebuild();
+    const box=new THREE.Box3().setFromObject(design);
+    if(box.isEmpty())return state.zoom;
+    box.getCenter(controls.target);
+    const radius=box.getSize(new THREE.Vector3()).length()/2;
+    const vertical=camera.fov*Math.PI/360;
+    const horizontal=Math.atan(Math.tan(vertical)*camera.aspect);
+    const distance=Math.max(.1,radius*1.12/Math.sin(Math.min(vertical,horizontal)));
+    state.zoom=Math.min(.9,11/distance);
+    setCamera(state);
+    return state.zoom;
   }
 
   function setPreset(name) {
@@ -1858,6 +1880,6 @@
     }
   });
 
-  window.atelier3D = { setVisible, requestRebuild, rebuild, setCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
+  window.atelier3D = { setVisible, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();

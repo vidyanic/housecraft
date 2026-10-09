@@ -20,6 +20,9 @@
     if(o.type==='dimension') return A.floor().dimensions;
     if(o.type==='column') return (A.floor().columns ||= []);
     if(o.type==='beam') return (A.floor().beams ||= []);
+    if(o.type==='slab') return (A.floor().slabs ||= []);
+    if(o.type==='load') return (A.floor().loads ||= []);
+    if(o.type==='structural-wall') return (A.floor().structuralWalls ||= []);
     return A.floor().items;
   }
 
@@ -33,7 +36,7 @@
       if(A.floor().columns) A.floor().columns=A.floor().columns.filter(o=>!ids.has(o.id));
       if(A.floor().beams) A.floor().beams=A.floor().beams.filter(o=>!ids.has(o.id));
     } else {
-      for(const key of ['rooms','walls','items','dimensions','columns','beams']){
+      for(const key of ['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls']){
         if(!A.floor()[key]) continue;
         const i=A.floor()[key].findIndex(x=>x.id===s.selected);
         if(i>=0){A.floor()[key].splice(i,1);break}
