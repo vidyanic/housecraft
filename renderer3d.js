@@ -1298,6 +1298,46 @@
     }
   }
 
+  function buildColumn3D(col) {
+    const group = new THREE.Group();
+    const w = cm(col.w || 23);
+    const d = cm(col.d || 30);
+    const h = cm(col.height || 280);
+    const cx = cm(col.x + (col.w || 23) / 2);
+    const cz = cm(col.y + (col.d || 30) / 2);
+    const mat = pbr({ material: 'concrete', color: col.color || '#9ea29e' });
+    box(group, w, h, d, cx, h / 2, cz, mat);
+    const trimMat = pbr({ material: 'concrete', color: '#8d928e' });
+    box(group, w + 0.03, 0.06, d + 0.03, cx, 0.03, cz, trimMat);
+    group.userData.entityId = col.id;
+    return group;
+  }
+
+  function buildBeam3D(beam) {
+    const group = new THREE.Group();
+    const dx = beam.x2 - beam.x1;
+    const dy = beam.y2 - beam.y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return null;
+    const angle = Math.atan2(dy, dx);
+    const bw = cm(beam.width || 23);
+    const bd = cm(beam.depth || 35);
+    const ceilH = cm(beam.ceilingHeight || 280);
+    const midX = cm((beam.x1 + beam.x2) / 2);
+    const midZ = cm((beam.y1 + beam.y2) / 2);
+    const midY = ceilH - bd / 2;
+    const mat = pbr({ material: 'concrete', color: beam.color || '#a4a9a5' });
+    const geo = new THREE.BoxGeometry(cm(len), bd, bw);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(midX, midY, midZ);
+    mesh.rotation.y = -angle;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    group.userData.entityId = beam.id;
+    return group;
+  }
+
   function addSelection(floorData) {
     const id = window.atelierBridge && window.atelierBridge.selected;
     if (!id) return;
@@ -1319,6 +1359,16 @@
         design.add(roofShadowOccluder(item));
       } else design.add(buildObject(item));
     });
+    if (projectData.showStructure !== false) {
+      (floorData.columns || []).forEach(col => {
+        const c3d = buildColumn3D(col);
+        if (c3d) design.add(c3d);
+      });
+      (floorData.beams || []).forEach(beam => {
+        const b3d = buildBeam3D(beam);
+        if (b3d) design.add(b3d);
+      });
+    }
     addSelection(floorData);
     const bounds = bridge.planBounds();
     const cx = cm((bounds.minX + bounds.maxX) / 2), cz = cm((bounds.minY + bounds.maxY) / 2);
@@ -1423,8 +1473,7 @@
     });
     if (!hit?.entityNode) return null;
     const entityId = hit.entityNode.userData.entityId;
-    const floorItems = window.atelierBridge?.floor?.()?.items || [];
-    const entity = floorItems.find(item => item.id === entityId);
+    const entity = window.atelierBridge?.findEntity ? window.atelierBridge.findEntity(entityId) : (window.atelierBridge?.floor?.()?.items || []).find(item => item.id === entityId);
     return entity ? { entity, groupNode: hit.entityNode } : null;
   }
 
@@ -1437,8 +1486,7 @@
     if (shiftPressed && e) {
       updatePointer(e);
       const hit = getRaycastEntity();
-      const floorItems = window.atelierBridge?.floor?.()?.items || [];
-      const hasSelected = !!floorItems.find(i => i.id === window.atelierBridge?.selected);
+      const hasSelected = !!(window.atelierBridge?.selected && (window.atelierBridge?.findEntity ? window.atelierBridge.findEntity(window.atelierBridge.selected) : null));
       renderer.domElement.style.cursor = (hit || hasSelected) ? 'grab' : 'default';
       return;
     }
@@ -1460,13 +1508,12 @@
     if ((e.shiftKey || shiftPressed) && e.button === 0) {
       updatePointer(e);
       let hit = getRaycastEntity();
-      const floorItems = window.atelierBridge?.floor?.()?.items || [];
       let targetEntity = hit?.entity;
       let targetGroup = hit?.groupNode;
 
       // If clicked on empty space while an item is selected, move the selected item
       if (!targetEntity && window.atelierBridge?.selected) {
-        targetEntity = floorItems.find(i => i.id === window.atelierBridge.selected);
+        targetEntity = window.atelierBridge.findEntity ? window.atelierBridge.findEntity(window.atelierBridge.selected) : (window.atelierBridge?.floor?.()?.items || []).find(i => i.id === window.atelierBridge.selected);
         if (targetEntity) {
           targetGroup = design.children.find(c => c.userData?.entityId === targetEntity.id);
         }
