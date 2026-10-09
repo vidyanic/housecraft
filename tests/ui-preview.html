@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Atelier Plan · Studio UI preview</title>
+<style>body{margin:12px;font:13px system-ui;background:#edf1f4;color:#243846}h1{font-size:19px;margin:0 0 8px}p{color:#647785}button{padding:8px 14px;margin:0 4px 6px 0;border:1px solid #cad8e1;background:white;border-radius:5px;cursor:pointer}iframe{display:block;border:1px solid #cbd8e0;width:1440px;height:900px;margin-top:4px}</style>
+<h1>Atelier Plan · redesigned studio</h1><p>Isolated preview: desktop, tablet and touch layouts. The saved working project is preserved.</p>
+<button id="desktop">Desktop</button><button id="tablet">Tablet</button><button id="mobile">Mobile</button><button id="architecture">Architecture</button><button id="structure">Structure</button><button id="services">Services</button><button id="three">3D</button><button id="edit">Select furniture</button><button id="properties">Properties</button><button id="library">Library</button><button id="objects">Objects</button><button id="export">Export</button>
+<iframe id="app" title="Redesigned studio preview" src="../index.html?test=1"></iframe>
+<script>
+const frame=document.getElementById('app');
+frame.onload=()=>{const A=frame.contentWindow.Atelier;A.state.project=A.normalizeProject(A.deep(A.DEFAULT));A.state.project.name='Courtyard house';A.state.selected=null;A.state.selectedIds.clear();A.state.history=[];A.state.future=[];A.setWorkspace('architecture');A.syncUI();A.fitPlan();};
+for(const [name,width,height] of [['desktop',1440,900],['tablet',820,900],['mobile',390,844]])document.getElementById(name).onclick=()=>{frame.style.width=width+'px';frame.style.height=height+'px';requestAnimationFrame(()=>{const A=frame.contentWindow.Atelier;A.resizeCanvas();A.fitPlan();});};
+for(const name of ['architecture','structure','services'])document.getElementById(name).onclick=()=>frame.contentWindow.Atelier.setWorkspace(name);
+document.getElementById('three').onclick=()=>frame.contentWindow.Atelier.setView('3d');
+document.getElementById('edit').onclick=()=>{const A=frame.contentWindow.Atelier;A.setWorkspace('architecture');A.select(A.floor().items.find(o=>o.shape==='bed')?.id||A.floor().items[0]?.id);A.studioUI.showPanel('inspector');};
+for(const name of ['properties','library','objects','export'])document.getElementById(name).onclick=()=>{const A=frame.contentWindow.Atelier;if(name==='properties')A.studioUI.showPanel('inspector');else if(name==='export')A.studioUI.openExport();else A.studioUI.showLibrary(name);};
+</script></html>

@@ -8,6 +8,8 @@ Open `index.html` directly, or run `node server.cjs` from this directory and vis
 
 ## Editing
 
+The studio has persistent Architecture, Structure, Services and 3D workspaces, a contextual tool row, direct floor switching, searchable Library/Objects panels and focused property sheets. Export opens the drawing/project export sheet. Use Ctrl/Cmd K for commands, Alt 1–4 for workspaces and Ctrl/Cmd S to save. Desktop docks adapt to a single side panel on tablets and full-width sheets on phones. See [UI_REDESIGN.md](UI_REDESIGN.md) for the critique and interaction decisions.
+
 Select and drag objects; use corner handles to resize and the round handle to rotate. Shift/Ctrl/Cmd-click adds furniture to a group. The inspector accepts feet/inches (including `6″` and `5′ 4″`), decimal units, and negative coordinates. Invalid measurements are rejected.
 
 Wall endpoints that already meet stay joined when edited. Doors and windows keep a host-wall relationship and follow wall moves and rotations. Openings wider than a wall do not attach to it. Dimensions placed within 30 cm of an entity corner retain a reference and follow geometry edits.

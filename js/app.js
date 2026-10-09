@@ -15,6 +15,7 @@
     A.renderCatalog();
     A.initUI();
     A.initStructuralWorkspace?.();
+    A.initStudioUI?.();
   }
 
   if (document.readyState === 'loading') {

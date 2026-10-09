@@ -194,10 +194,10 @@
     return '<div class="section"><div class="section-title">Structural planning</div><p style="font-size:11px;line-height:1.6">Open the Structure tab for loads, supports, Lucknow/BIS inputs, calculation screening and reviewed fix proposals.</p><button class="button" id="openStructureWorkspace">Open Structure workspace</button></div>';
   }
   function renderInspector() {
-    const s=S(),project=s.project,body=A.$('#inspectorBody'),o=A.findEntity(s.selected);
+    const s=S(),project=s.project,body=A.$('#inspectorBody'),o=s.inspectorMode==='project'?null:A.findEntity(s.selected);
 
     // ── Multi-selection mode ───────────────────────────────────
-    if(s.selectedIds.size>1){
+    if(s.selectedIds.size>1&&s.inspectorMode!=='project'){
       const objects=A.selectedObjectList();
       A.$('#inspectorTitle').textContent=`${objects.length} objects selected`;
       body.innerHTML=`<div class="empty-selection" style="padding-top:18px"><div class="empty-icon">${A.icon('i-select')}</div><strong>${objects.length} objects selected</strong><span>Group transform mode is active.</span></div><div class="section"><div class="section-title">Group transform <span>${objects.length} items</span></div><div class="audit-list"><div class="audit-item pass"><span>Move</span><span>Drag any selected object</span></div><div class="audit-item pass"><span>Rotate</span><span>Drag the round handle</span></div><div class="audit-item pass"><span>Nudge</span><span>Arrow keys · Shift = larger</span></div><div class="audit-item pass"><span>Remove</span><span>Delete key</span></div></div></div><div class="section"><div class="section-title">Selected objects</div><div class="audit-list">${objects.map(x=>`<div class="audit-item"><span>${A.escapeHtml(x.name||x.type)}</span><span>${A.formatLength(x.w)} × ${A.formatLength(x.d)}</span></div>`).join('')}</div></div><button class="button" id="clearMultiSelection" style="width:100%;margin-top:10px">Clear group selection</button>`;

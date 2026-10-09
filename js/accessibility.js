@@ -11,11 +11,11 @@
  function initAccessibility(){
    enhance();new MutationObserver(enhance).observe(A.$('#inspectorBody'),{childList:true,subtree:true});
    document.addEventListener('keydown',e=>{
-     const modal=document.querySelector('.modal-backdrop.show');
+     const modal=document.querySelector('.modal-backdrop.show:not([data-studio-dialog])');
      if(modal){if(e.key==='Escape'){modal.classList.remove('show');e.preventDefault();e.stopImmediatePropagation();return;}
        if(e.key==='Tab'){const controls=[...modal.querySelectorAll('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){last?.focus();e.preventDefault();}else if(!e.shiftKey&&document.activeElement===last){first?.focus();e.preventDefault();}}
      }
-     if(e.target.matches('.switch')&&[' ','Enter'].includes(e.key)){e.preventDefault();e.target.click();enhance();}
+     if(e.target.matches?.('.switch')&&[' ','Enter'].includes(e.key)){e.preventDefault();e.target.click();enhance();}
    },true);
    document.querySelectorAll('.modal-backdrop').forEach(modal=>{let opener;new MutationObserver(()=>{if(modal.classList.contains('show')){opener=document.activeElement;modal.querySelector('button,input,select')?.focus();}else opener?.focus();}).observe(modal,{attributes:true,attributeFilter:['class']});});
    document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>A.$('#'+b.dataset.close).classList.remove('show'));

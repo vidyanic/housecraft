@@ -43,13 +43,14 @@
   function renderCatalog(filter = '', category = activeCategoryFilter) {
     activeCategoryFilter = category;
     const f = filter.toLowerCase();
-    const items = A.CATALOG.filter(x => (category==='all'||x.category===category) && x.name.toLowerCase().includes(f));
+    const visible=x=>(S().workspace!=='services'||!!x.system)&&(category==='all'||x.category===category)&&x.name.toLowerCase().includes(f);
+    const items = A.CATALOG.filter(visible);
     A.$('#catalogCount').textContent = `${items.length} item${items.length===1?'':'s'}`;
 
     let html = '';
     if (category === 'all') {
       A.CATEGORY_META.forEach(([key, label]) => {
-        const group = A.CATALOG.filter(x => x.category===key && x.name.toLowerCase().includes(f));
+        const group = items.filter(x => x.category===key);
         if(!group.length) return;
         html += `<div class="cat-group-head">${label}<span>${group.length}</span></div><div class="object-grid">${group.map(catCardHtml).join('')}</div>`;
       });

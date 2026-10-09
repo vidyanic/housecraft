@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#f7f5ef" />
   <title>Atelier Plan — Spatial design studio</title>
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/studio.css">
 </head>
 
 <body>
@@ -325,7 +326,7 @@
           <div class="render-badge">PBR · DRAG TO ORBIT · SHIFT+DRAG TO MOVE OBJECTS</div>
         </div>
         <div class="stage-top">
-          <div class="crumb"><strong id="floorLabel">Ground floor</strong>&nbsp;&nbsp;/&nbsp;&nbsp;<span
+          <div class="crumb"><strong id="floorLabel">Ground floor</strong><span
               id="workspaceModeLabel">2D workspace</span></div>
           <div class="canvas-actions">
             <button id="structureBtn" class="active" title="Toggle structural plan (hide/show pillars & beams)"><svg
@@ -349,7 +350,7 @@
           <div class="chip-info">
             <span class="chip-name" id="chipName">Item selected</span>
             <span class="chip-meta" id="chipMeta">Dimensions</span>
-          </          <div class="chip-actions">
+          </div><div class="chip-actions">
             <button class="chip-btn primary" id="chipEditBtn">Edit ⚙</button>
             <button class="chip-btn danger" id="chipDeleteBtn" title="Delete">✕</button>
           </div>
@@ -395,7 +396,6 @@
         <span id="zoomLabel">100%</span>
         <button id="zoomIn" title="Zoom in">+</button>
       </div>
-    </footer>      </div>
     </footer>
 
     <!-- Mobile Bottom Navigation Tab Bar (<= 768px) -->
@@ -479,6 +479,9 @@
         </div>
         <div class="help-section">
           <h4>Edit</h4>
+          <div class="help-row"><span>Search commands &amp; objects</span><kbd>Ctrl/⌘ + K</kbd></div>
+          <div class="help-row"><span>Switch workspace</span><kbd>Alt + 1–4</kbd></div>
+          <div class="help-row"><span>Save project</span><kbd>Ctrl/⌘ + S</kbd></div>
           <div class="help-row"><span>Copy</span><kbd>⌘/Ctrl + C</kbd></div>
           <div class="help-row"><span>Paste</span><kbd>⌘/Ctrl + V</kbd></div>
           <div class="help-row"><span>Duplicate</span><kbd>⌘/Ctrl + D</kbd></div>
@@ -643,6 +646,7 @@
   <script src="js/accessibility.js"></script>
   <script src="js/structural-proposals.js"></script>
   <script src="js/structural-workspace.js"></script>
+  <script src="js/studio-ui.js"></script>
   <script src="js/app.js"></script>
 
   <!-- 3D renderer (Three.js) -->

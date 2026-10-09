@@ -272,6 +272,7 @@
     addEventListener('keydown',e=>{
       if(e.key==='Escape'&&A.$('#helpModal').classList.contains('show')){A.$('#helpModal').classList.remove('show');return}
       if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+      if(e.defaultPrevented||e.target.closest?.('button,[role="tab"],.modal-backdrop.show'))return;
       if(window.atelier3D?.isWalking?.()){if(e.key==='Escape'){window.atelier3D.setWalk(false);A.renderInspector();A.showToast('Orbit view restored')}return}
       if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();A.deleteSelected();return}
       if(e.key==='Escape'){if(S().interaction)A.cancelInteraction();A.select(null);A.setTool(S().viewMode==='3d'?'pan':'select')}

@@ -6,6 +6,8 @@ The app uses plain script tags and the `window.Atelier` namespace. There is no b
 |---|---|
 | index.html | Application shell, toolbars, panels, dialogs, script order |
 | css/styles.css | Responsive layout, components, focus styles, drawing/report print styles |
+| css/studio.css | Adaptive studio shell, workspace/task navigation, docked panels and touch sheets |
+| js/studio-ui.js | Command search, object browser, contextual tools, property sheets and adaptive navigation |
 | js/utilities.js | DOM helpers, IDs, unit conversion, signed formatting, storage namespace |
 | js/constants.js | Structural and geometry defaults |
 | js/furniture-catalog.js | Base furniture/opening/equipment definitions |

@@ -17,3 +17,7 @@ Structural screenshots: `structure-desktop.png`, `structure-tablet-properties.pn
 Lucknow defaults use Zone III, provisional soil II and provisional allowable bearing of 150 kPa. See `STRUCTURAL_IMPLEMENTATION.md` for verified equation scope, BIS edition review and unimplemented design checks.
 
 To repeat browser validation, start `node server.cjs`, open `http://127.0.0.1:4173/tests/browser.html`, wait for Ready and choose Run browser checks.
+
+## Studio UI redesign
+
+The revised navigation passed all 33 browser workflows, 8 application regression groups and 17 engineering benchmark groups. New workflows validate tab keyboard behavior, selection-preserving project edits, direct export/focus return, command search, direct structural creation/results, Services catalog search and panel visibility/overflow at 1440, 820 and 390 px widths. Desktop/tablet/mobile previews and export/structural sheets were visually inspected using isolated storage. See `UI_REDESIGN.md` for the critique and `ui-*.png` for screenshots. This is workflow validation, not a full accessibility certification.
