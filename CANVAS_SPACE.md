@@ -1,25 +1,33 @@
-# Canvas space revision
+# Persistent studio shell
 
-The previous shell reserved 158 px above the desktop drawing and 34 px below it, with two permanent side docks. At 1440 × 900 the stage was about 868 × 708. The compact shell reserves one 48 px workspace header, giving a 1440 × 852 stage. Expand mode removes that header too. These are drawing surface bounds; visible overlays can cover part of the drawing.
+The current revision supersedes the initial auto-hidden shell. Desktop opens with the project header, workspace row, Library and Properties visible. Both side panels are 280 px wide, aligned beneath a 54 px project header and a 48 px workspace row. A permanent 64 px modeling rail sits at the left (56 px on phones).
 
-## Critique before implementation
+## Comparison and critique
 
-| Idea | Benefit | Critique |
+Primary references reviewed:
+
+- [SketchUp for Web navigation](https://help.sketchup.com/en/sketchup-web/navigating-sketchup-web): distinct modeling tools and option panels.
+- [Figma navigation and panels](https://help.figma.com/hc/en-us/articles/360039831974-Explore-the-navigation-bar-and-left-sidebar): distinct navigation, panels and canvas.
+- [SketchUp main toolbar](https://help.sketchup.com/en/sketchup-web/sketchup-web-main-toolbar): help alongside search controls.
+
+| Candidate | Critique | Decision |
 | --- | --- | --- |
-| Merge all three toolbar rows | Reduces height | Too many competing file, drawing and workspace commands in one row, particularly on touch screens. |
-| Hide all navigation by default | Maximum space | Weak discoverability and no persistent workspace identity. |
-| Compact header with canvas overlays and an expand mode | Keeps workspace identity while reclaiming drawing space | Requires explicit touch toggles, keyboard access and careful focus retention. Selected. |
+| Dense horizontal ribbon | Reintroduces competing rows and repeated controls | Reject |
+| Auto-hidden floating shell | Saves space but obscures routine commands and looks fragmented | Replace |
+| Persistent tool rail and balanced panels | Clear spatial roles and predictable access; explicit collapse gives more canvas space | Implement |
 
-## Interaction rules
+The visual critique corrected inherited mobile panel insets that covered the rail, prevented two overlapping sheets after resizing, and moved collapsed-sheet handles to the bottom of the rail so they do not cover sheet headings.
 
-- Architecture, Structure, Services and 3D remain in one 48 px header. Project actions reveal as an overlay.
-- Drawing commands float at the canvas top. Tools toggles their visibility. Floor selection, add floor, zoom and Expand canvas sit at the bottom.
-- Library and Properties are overlays on every screen size, including mobile. The canvas stays visible behind them. Opening or hiding a sheet does not change stage bounds, canvas bitmap size or camera position.
-- Fine mouse hover reveals a surface. Leaving schedules a 450 ms hide, allowing travel from its handle to its controls. A focused field or an open dialog prevents automatic dismissal.
-- Touch uses explicit tap toggles and panel close buttons. Hover from touch events is ignored. Keyboard activation enters the revealed controls; Escape closes and returns focus to the handle.
-- Expand canvas hides all four surfaces, the workspace header and the drawing annotations/controls. Compact reveal handles, View controls and Restore workspace remain available. Project reveals workspace navigation in this mode. Escape restores the workspace when outside a panel.
-- Expand/restore changes the actual stage dimensions and resizes the canvas once. Reveal/hide performs no resize. Model geometry and history remain unchanged.
+## Interaction model
 
-The visual critique found and removed an inherited two-row mobile navigation rule, avoided hover followed by click immediately closing a panel, and ensured a toolbar does not disappear while its dialog is open.
+- Project header contains project identity, search, Help immediately beside search, file actions and history. Its minus button explicitly hides the bar.
+- Workspace row contains workspace tabs, one floor dropdown, add floor, 3D floor display where relevant, Grid and Fit. The repeated floor crumb and architecture Structure overlay toggle are removed from the visible UI.
+- The left rail contains the active workspace's drawing/modeling tools and context commands. It stays visible in normal and expanded modes.
+- Library and Properties stay open until their Hide buttons are used. Desktop reserves their space. Explicit collapse/open changes the canvas bounds; hovering a hidden-panel handle reveals an overlay without changing bounds, bitmap size, geometry or camera state.
+- Expand canvas hides the headers and sheets, keeps the permanent rail and compact canvas zoom/restore controls, and remembers which panels were visible. Restore returns that visibility state.
+- Hover previews dismiss after 450 ms, except while a field has focus or a dialog is open. Explicitly opened sheets do not dismiss on pointer leave. Touch has explicit reveal and Hide controls. Escape dismisses temporary overlays and returns focus.
+- Workspace switches preserve explicitly hidden sheets. Library content changes to Objects for Structure and back to the catalog for other workspaces.
+- Tablet and phone sheets overlay the canvas, with one sheet open at a time. A sheet remains visible by default; both headers and tools remain available. Desktop uses matching panel widths.
+- Objects has one primary entry in Library. Duplicate, Rotate and Delete appear once in the selected-object action strip; the distinct Align wall action is retained. Services routes stay on the rail without a duplicate Library shortcut.
 
-Validation covers desktop 1440 px, tablet 820 px and mobile 390 px, stable overlay bounds/camera/bitmap, touch toggles, focused-input retention, mouse reveal/dismissal, Escape focus return and expand/restore.
+Validation covers 1440, 820 and 390 px layouts, permanent vertical tools, default visible chrome, explicit visibility retention, expanded-state restoration, hover invariants, keyboard focus, touch dismissal, imports/exports, model editing and 3D reuse. Screenshots use isolated preview storage.

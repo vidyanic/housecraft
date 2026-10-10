@@ -1,5 +1,7 @@
 # Studio navigation redesign
 
+The latest revision is documented in [CANVAS_SPACE.md](CANVAS_SPACE.md): visible project/workspace bars, matching desktop panels, a permanent left modeling rail, explicit collapse controls and state-preserving Expand canvas. It supersedes the adaptive dock and auto-hidden toolbar descriptions below.
+
 ## Analysis and critique
 
 The old header mixed workspaces, panel toggles and file actions. Drawing tools were icon-only, and exports required opening Properties and expanding a second menu. The structural inspector combined creation, basis, member editing, proposals, schedules and results in one scroll. Mobile floor navigation opened an add-floor dialog instead of a direct floor switcher. CSS and panel handlers used inconsistent breakpoints. Duplicate/rotate/delete sat below long property forms.

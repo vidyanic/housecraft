@@ -1,73 +1,107 @@
-/* The stage owns all available space; every revealed sheet floats above it. */
-body.studio.canvas-space .app{grid-template-rows:48px minmax(0,1fr);position:relative}
-body.studio.canvas-space .workspace-navigation{grid-row:1;padding:0 12px;gap:8px;display:flex}
-body.studio.canvas-space .workspace-navigation .view-switch{flex:1;justify-content:flex-start}
-body.studio.canvas-space .workspace-navigation .view-switch button{padding:0 14px}
-body.studio.canvas-space #workspace{grid-row:2;display:block;position:relative;overflow:hidden;min-height:0}
-body.studio.canvas-space #workspace #stage{display:block!important;position:absolute;inset:0;grid-column:auto;visibility:visible}
-body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{display:flex!important;position:absolute;top:0;bottom:58px;width:min(340px,calc(100% - 56px));height:auto;z-index:35;visibility:hidden;pointer-events:none;box-shadow:0 8px 30px #1b304733;grid-column:auto;border:1px solid #d8e1e7;transition:none}
-body.studio.canvas-space #workspace #catalogPanel{left:0}
-body.studio.canvas-space #workspace #inspectorPanel{right:0}
-body.studio.canvas-space #workspace .space-open{visibility:visible!important;pointer-events:auto!important}
-body.studio.canvas-space .topbar{position:absolute;inset:0 0 auto;height:54px;z-index:45;visibility:hidden;pointer-events:none;box-shadow:0 6px 20px #1b304726}
-body.studio.canvas-space .studio-taskbar{position:absolute;left:56px;right:56px;top:8px;min-height:44px;height:auto;padding:5px 8px;border:1px solid #d8e1e7;border-radius:8px;box-shadow:0 3px 14px #1b304716;visibility:hidden;pointer-events:none;z-index:20;display:flex;flex-wrap:nowrap}
-body.studio.canvas-space .task-panel-actions{display:none}
-body.studio.canvas-space .stage-top{top:64px;left:64px;right:64px}
-body.studio.canvas-space .grid-legend{top:108px;left:64px}
-body.studio.canvas-space .space-handle{height:44px;min-width:44px;border:1px solid #d8e1e7;border-radius:6px;background:#fffffff2;color:#315b50;font-size:11px;font-weight:600;cursor:pointer;z-index:40;padding:0 10px}
-body.studio.canvas-space #stage>.space-handle{position:absolute}
-body.studio.canvas-space .space-catalog{left:6px;top:120px;writing-mode:vertical-rl;height:86px;width:38px}
-body.studio.canvas-space .space-inspector{right:6px;top:120px;writing-mode:vertical-rl;height:100px;width:38px}
-body.studio.canvas-space .space-tools{left:6px;top:8px;width:44px;padding:0}
-body.studio.canvas-space .canvas-bottom{position:absolute;left:12px;right:12px;bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;z-index:40;pointer-events:none}
-body.studio.canvas-space .canvas-bottom>*{pointer-events:auto;background:#fffffff2;border-radius:6px;border:1px solid #d8e1e7;padding:4px}
-body.studio.canvas-space .level-picker{margin:0;gap:4px}
-body.studio.canvas-space .level-picker select{width:130px}
-body.studio.canvas-space .zoom-controls{margin-left:auto;display:flex!important}
-body.studio.canvas-space #expandCanvas{height:44px;white-space:nowrap;font-weight:600;color:#24665b;padding:0 12px}
-body.studio.canvas-space .focus-view-controls{display:none}
-body.studio.canvas-space.canvas-focus .canvas-bottom{justify-content:flex-end}
-body.studio.canvas-space.canvas-focus .canvas-bottom>.level-picker,body.studio.canvas-space.canvas-focus .canvas-bottom>.zoom-controls,body.studio.canvas-space.canvas-focus .canvas-bottom>.studio-floor-display{display:none!important}
-body.studio.canvas-space.canvas-focus .canvas-bottom.bottom-open>.level-picker,body.studio.canvas-space.canvas-focus .canvas-bottom.bottom-open>.zoom-controls{display:flex!important}
-body.studio.canvas-space.canvas-focus .focus-view-controls{display:block;height:44px}
-body.studio.canvas-space.canvas-focus .stage-top,body.studio.canvas-space.canvas-focus .grid-legend,body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .compass,body.studio.canvas-space.canvas-focus .mobile-selection-chip{visibility:hidden}
-body.studio.canvas-space .desktop-bottombar,body.studio.canvas-space .mobile-tabbar,body.studio.canvas-space .floating-zoom-controls{display:none!important}
-body.studio.canvas-space .hint{bottom:66px;left:64px;max-width:calc(100% - 140px)}
-body.studio.canvas-space .compass{bottom:66px;right:16px}
-body.studio.canvas-space .mobile-selection-chip{bottom:114px;left:64px;max-width:calc(100% - 128px)}
-body.studio.canvas-space.canvas-focus .app{grid-template-rows:minmax(0,1fr)}
-body.studio.canvas-space.canvas-focus #workspace{grid-row:1}
-body.studio.canvas-space.canvas-focus .workspace-navigation{position:absolute;top:0;left:56px;right:56px;z-index:44;height:48px;visibility:hidden;pointer-events:none}
-body.studio.canvas-space.canvas-focus .workspace-navigation:focus-within,body.studio.canvas-space.canvas-focus .workspace-navigation:hover{visibility:visible;pointer-events:auto}
-body.studio.canvas-space.canvas-focus .workspace-navigation.space-open{visibility:visible;pointer-events:auto;top:54px}
-body.studio.canvas-space.canvas-focus .space-project{position:fixed;top:4px;right:6px;visibility:visible;pointer-events:auto}
-@media(max-width:900px){
- body.studio.canvas-space .tool-text{display:none}
- body.studio.canvas-space .studio-taskbar{overflow-x:auto;gap:4px}
- body.studio.canvas-space .context-commands{overflow:visible;flex-shrink:0;display:flex;grid-template-columns:none}
- body.studio.canvas-space .context-commands .task-button,body.studio.canvas-space .tool{min-height:44px;height:44px}
- body.studio.canvas-space .topbar .brand{display:none}
- body.studio.canvas-space .top-actions{width:100%;justify-content:space-between}
+/* Aligned editor shell. Explicit collapse changes layout; hover never does. */
+body.studio.canvas-space .app{--rail:64px;--library:280px;--properties:280px;--project-height:54px;--nav-height:48px;grid-template-rows:var(--project-height) var(--nav-height) minmax(0,1fr);position:relative}
+body.studio.canvas-space .app[data-project-visible="false"]{--project-height:0px}
+body.studio.canvas-space .app[data-navigation-visible="false"]{--nav-height:0px}
+body.studio.canvas-space .app[data-catalog-visible="false"]{--library:0px}
+body.studio.canvas-space .app[data-inspector-visible="false"]{--properties:0px}
+body.studio.canvas-space .topbar{grid-row:1;position:relative;height:54px;padding:0 16px;gap:12px;visibility:hidden;pointer-events:none;background:#fff;border-bottom:1px solid #dce3e9;z-index:50;box-shadow:none}
+body.studio.canvas-space .brand-name{font-size:14px}
+body.studio.canvas-space .project-name{width:160px;font-size:12px}
+body.studio.canvas-space .top-actions{margin-left:auto;gap:6px}
+body.studio.canvas-space .command-launch{min-width:148px;font-size:11px}
+body.studio.canvas-space #helpBtn{display:inline-flex!important;color:#526778}
+body.studio.canvas-space .workspace-navigation{grid-row:2;position:relative;display:flex;align-items:center;padding:0 14px 0 16px;gap:12px;height:48px;visibility:hidden;pointer-events:none;background:#f9fbfc;border-bottom:1px solid #dce3e9;z-index:45;box-shadow:none}
+body.studio.canvas-space .view-switch{flex:1;justify-content:flex-start;gap:2px}
+body.studio.canvas-space .view-switch button{padding:0 12px;font-size:12px}
+body.studio.canvas-space .level-picker{margin:0;gap:6px}
+body.studio.canvas-space .level-picker select{width:134px;height:34px;background:white}
+body.studio.canvas-space .studio-floor-display select{width:124px}
+body.studio.canvas-space .canvas-actions{display:flex;gap:4px;position:static}
+body.studio.canvas-space .canvas-actions button{height:34px;width:34px;min-width:34px;border:1px solid #dce3e9;border-radius:5px;background:white;color:#526778}
+body.studio.canvas-space #structureBtn{display:none!important}
+body.studio.canvas-space[data-studio-view="3d"] #gridBtn{display:none}
+body.studio.canvas-space .chrome-hide{color:#7e8c99;background:transparent;border:0;flex-shrink:0}
+body.studio.canvas-space #workspace{grid-row:3;display:block;position:relative;overflow:hidden;min-height:0}
+body.studio.canvas-space #workspace #stage{display:block!important;position:absolute;inset:0 var(--properties) 0 calc(var(--rail) + var(--library));width:auto;grid-column:auto;visibility:visible;background:#edf1f4}
+body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{display:flex!important;position:absolute;top:0;bottom:0;height:auto;z-index:35;visibility:hidden;pointer-events:none;box-shadow:none;grid-column:auto;border:0;background:#fff;transition:none}
+body.studio.canvas-space #workspace #catalogPanel{left:var(--rail);right:auto;width:280px;border-right:1px solid #dce3e9}
+body.studio.canvas-space #workspace #inspectorPanel{left:auto;right:0;width:280px;border-left:1px solid #dce3e9}
+body.studio.canvas-space .space-open{visibility:visible!important;pointer-events:auto!important}
+body.studio.canvas-space .app[data-catalog-visible="false"] #catalogPanel.space-open,body.studio.canvas-space .app[data-inspector-visible="false"] #inspectorPanel.space-open{box-shadow:0 6px 24px #1b304726}
+body.studio.canvas-space .studio-taskbar{position:absolute;left:0;top:0;bottom:0;width:64px;right:auto;height:auto;min-height:0;padding:10px 5px;border:0;border-right:1px solid #dce3e9;border-radius:0;background:#f9fbfc;box-shadow:none;visibility:visible!important;pointer-events:auto!important;z-index:40;display:flex;flex-direction:column;align-items:stretch;gap:10px;overflow-y:auto;overflow-x:hidden}
+body.studio.canvas-space .toolrail{position:static;width:100%;display:flex!important;flex-direction:column;align-items:stretch;gap:4px;flex-shrink:0}
+body.studio.canvas-space .studio-taskbar{padding-bottom:112px}
+body.studio.canvas-space .tool{width:100%;height:48px;min-height:48px;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:4px 2px;border-radius:6px;font-size:9px}
+body.studio.canvas-space .tool-text{display:block;font-size:9px;line-height:1.1}
+body.studio.canvas-space .context-commands{display:flex;flex-direction:column;gap:4px;overflow:visible;flex-shrink:0;border-top:1px solid #dce3e9;padding-top:10px}
+body.studio.canvas-space .context-commands .task-button{display:flex;flex-direction:column;gap:4px;width:100%;height:auto;min-height:48px;padding:5px 2px;font-size:9px;line-height:1.25;white-space:normal;color:#526778}
+body.studio.canvas-space .task-panel-actions,body.studio.canvas-space .stage-top,body.studio.canvas-space .mobile-selection-chip,body.studio.canvas-space .desktop-bottombar,body.studio.canvas-space .mobile-tabbar,body.studio.canvas-space .floating-zoom-controls{display:none!important}
+body.studio.canvas-space .panel-head{height:68px;min-height:68px;padding:12px 14px}
+body.studio.canvas-space .panel-title{font-size:14px}
+body.studio.canvas-space .panel-close-btn{width:32px;height:32px;color:#687b89}
+body.studio.canvas-space .eyebrow{font-size:8px;letter-spacing:.8px}
+body.studio.canvas-space #duplicateSelected,body.studio.canvas-space #rotateSelected,body.studio.canvas-space #deleteSelected{display:none}
+body.studio.canvas-space .space-handle{position:absolute;height:44px;min-width:44px;border:1px solid #dce3e9;border-radius:5px;background:#fff;color:#315b50;font-size:10px;font-weight:600;cursor:pointer;z-index:44;padding:0 8px}
+body.studio.canvas-space .space-catalog{left:6px;bottom:8px;width:52px;top:auto;padding:0;font-size:9px}
+body.studio.canvas-space .space-inspector{left:6px;right:auto;bottom:58px;top:auto;width:52px;padding:0;font-size:9px}
+body.studio.canvas-space .space-project{right:6px;top:60px}
+body.studio.canvas-space .space-navigation{left:70px;top:60px}
+body.studio.canvas-space .canvas-bottom{position:absolute;left:calc(var(--rail) + var(--library) + 14px);right:calc(var(--properties) + 14px);bottom:12px;display:flex;align-items:center;justify-content:flex-end;gap:8px;z-index:40;pointer-events:none}
+body.studio.canvas-space .canvas-bottom>*{pointer-events:auto;background:#fff;border-radius:6px;border:1px solid #dce3e9;box-shadow:0 2px 8px #2337450a}
+body.studio.canvas-space .zoom-controls{margin:0;display:flex!important;padding:3px;gap:4px}
+body.studio.canvas-space .zoom-controls button{height:32px;width:32px}
+body.studio.canvas-space #expandCanvas{height:40px;white-space:nowrap;font-weight:600;color:#24665b;padding:0 10px;font-size:11px}
+body.studio.canvas-space .grid-legend{top:14px;left:14px;font-size:9px;right:auto}
+body.studio.canvas-space .hint{bottom:62px;left:14px;max-width:calc(100% - 70px);font-size:9px;background:#ffffffc9}
+body.studio.canvas-space .compass{bottom:64px;right:14px;width:32px;height:32px}
+body.studio.canvas-space.canvas-focus .app{--library:0px;--properties:0px;--project-height:0px;--nav-height:0px}
+body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .grid-legend,body.studio.canvas-space.canvas-focus .compass{visibility:hidden}
+body.studio.canvas-space .app[data-project-visible="false"] .topbar.space-open{position:absolute;top:0;left:0;right:0;box-shadow:0 6px 24px #1b304726}
+body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-navigation.space-open{position:absolute;top:var(--project-height);left:0;right:0;box-shadow:0 6px 24px #1b304726}
+@media(max-width:1199px){
+ body.studio.canvas-space .project-name{width:140px}
+ body.studio.canvas-space .brand-name,body.studio.canvas-space .save-state{display:none}
+ body.studio.canvas-space .command-launch{min-width:36px;width:36px;font-size:0;padding:0}
+ body.studio.canvas-space .command-launch:before{content:'⌕';font-size:24px}
+ body.studio.canvas-space .command-launch kbd{display:none}
+ body.studio.canvas-space .view-switch button{padding:0 8px;font-size:11px}
+}
+@media(max-width:1099px){
+ body.studio.canvas-space .app{--library:0px;--properties:0px}
+ body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{width:300px;max-width:calc(100% - 72px);bottom:58px;box-shadow:0 6px 24px #1b304726}
 }
 @media(max-width:699px){
- body.studio.canvas-space .workspace-navigation{height:48px;padding:0 6px;flex-wrap:nowrap}
- body.studio.canvas-space .workspace-navigation .view-switch{height:48px;gap:0;flex:1;min-width:0}
- body.studio.canvas-space .workspace-navigation .view-switch button{padding:0 7px;font-size:11px;gap:3px;min-width:0;flex:1}
- body.studio.canvas-space .workspace-navigation .view-switch button svg{display:none}
- body.studio.canvas-space .space-project{padding:0 6px;min-width:44px}
- body.studio.canvas-space .studio-taskbar{left:56px;right:6px;top:6px;min-height:54px;display:flex}
- body.studio.canvas-space .toolrail{width:auto;flex-direction:row}
- body.studio.canvas-space .canvas-bottom{left:6px;right:6px;gap:4px}
+ body.studio.canvas-space .app{--rail:56px;--project-height:48px;--nav-height:84px}
+ body.studio.canvas-space .topbar{height:48px;padding:0 8px;gap:4px}
+ body.studio.canvas-space .topbar .brand{display:flex}
+ body.studio.canvas-space .brand-mark,body.studio.canvas-space #projectsBtn,body.studio.canvas-space #undoBtn{display:none!important}
+ body.studio.canvas-space .project-name{max-width:112px;width:112px;font-size:11px;padding:0;margin:0;border:0}
+ body.studio.canvas-space .top-actions{gap:3px;width:auto;justify-content:flex-end}
+ body.studio.canvas-space #commandBtn{display:inline-flex!important}
+ body.studio.canvas-space .top-actions .button,body.studio.canvas-space .top-actions .icon-button,body.studio.canvas-space .chrome-hide{min-width:32px;width:auto;height:36px}
+ body.studio.canvas-space #saveBtn span{display:none}
+ body.studio.canvas-space #exportBtn{padding:0 6px;font-size:10px}
+ body.studio.canvas-space .workspace-navigation{height:84px;display:flex;flex-wrap:wrap;padding:0 8px;gap:0 6px;align-content:center}
+ body.studio.canvas-space .view-switch{flex:0 0 100%;height:40px;gap:0;width:100%}
+ body.studio.canvas-space .view-switch button{padding:0 6px;font-size:10px;flex:1;gap:0}
+ body.studio.canvas-space .view-switch button svg{display:none}
  body.studio.canvas-space .level-picker label{display:none}
- body.studio.canvas-space .level-picker select{width:94px;height:36px}
- body.studio.canvas-space .level-picker .button{width:32px;min-width:32px}
- body.studio.canvas-space #expandCanvas{font-size:11px;padding:0 6px}
- body.studio.canvas-space .zoom-controls{gap:0;padding:2px}
- body.studio.canvas-space .zoom-controls button{width:28px;height:38px}
- body.studio.canvas-space #zoomLabel{font-size:9px;min-width:32px}
- body.studio.canvas-space[data-studio-view="3d"]:not(.canvas-focus) .studio-floor-display,body.studio.canvas-space[data-studio-view="3d"].canvas-focus .bottom-open>.studio-floor-display{display:flex!important}
+ body.studio.canvas-space .level-picker select{width:110px;height:34px}
+ body.studio.canvas-space .level-picker .button{width:32px;min-width:32px;height:34px;min-height:34px}
+ body.studio.canvas-space .canvas-actions{margin-left:auto}
+ body.studio.canvas-space .workspace-navigation>.chrome-hide{width:28px;min-width:28px;height:34px}
+ body.studio.canvas-space .studio-floor-display{display:none!important}
+ body.studio.canvas-space[data-studio-view="3d"] .studio-floor-display{display:flex!important}
  body.studio.canvas-space .studio-floor-display label{display:none}
- body.studio.canvas-space .studio-floor-display select{width:112px}
- body.studio.canvas-space .hint{left:54px;font-size:9px}
+ body.studio.canvas-space .studio-floor-display select{width:90px;height:34px;font-size:10px}
+ body.studio.canvas-space .studio-taskbar{width:56px;padding:8px 3px 112px}
+ body.studio.canvas-space .space-catalog,body.studio.canvas-space .space-inspector{left:3px;width:50px}
+ body.studio.canvas-space .space-navigation{left:62px}
+ body.studio.canvas-space #workspace #catalogPanel{left:56px}
+ body.studio.canvas-space .canvas-bottom{left:64px;right:8px;bottom:8px;gap:5px}
+ body.studio.canvas-space .zoom-controls{gap:0}
+ body.studio.canvas-space .zoom-controls button{height:34px;width:28px}
+ body.studio.canvas-space #expandCanvas{font-size:10px;padding:0 7px}
+ body.studio.canvas-space .panel-close-btn{width:44px;height:44px}
 }
-@media print{body.studio.canvas-space .space-handle,body.studio.canvas-space .canvas-bottom{display:none!important}}
+@media print{body.studio.canvas-space .space-handle,body.studio.canvas-space .canvas-bottom,body.studio.canvas-space .studio-taskbar{display:none!important}}

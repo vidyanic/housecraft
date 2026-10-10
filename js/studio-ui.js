@@ -11,11 +11,11 @@
     const ws=$('#workspace');ws.classList.remove(panel==='catalog'?'hide-catalog':'hide-inspector');
     A.setMobileTab(panel);A.resizeCanvas();window.atelier3D?.resize();syncShell();
   }
-  function showLibrary(page='library'){
+  function showLibrary(page='library',reveal=true){
     $('#catalogPanel').dataset.page=page;
     $('#libraryTabs').querySelectorAll('button').forEach(b=>{const on=b.dataset.library===page;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
     $('#catalogPanel .panel-title').textContent=page==='library'?'Object library':'Objects on this floor';
-    $('#treeSearch').value='';renderTree(true);showPanel('catalog');
+    $('#treeSearch').value='';renderTree(true);if(reveal)showPanel('catalog');
   }
   function renderTree(force=false){
     const objects=[...A.allEntities(),...(A.floor().grids||[])],q=$('#treeSearch')?.value.toLowerCase()||'';
@@ -100,7 +100,6 @@
     }else if(discipline==='architecture')commands.append(commandButton('Trace rooms',A.deriveRooms,'i-room'));
     else if(discipline==='services'){
       for(const [type,label] of [['cold-water-pipe','Water pipe'],['waste-pipe','Drain'],['electrical-wire','Wiring']]){const spec=A.CATALOG.find(o=>o.type===type);if(spec)commands.append(commandButton(label,()=>A.addObjectToPlan(type),'i-dimension'));}
-      commands.append(commandButton('All services',()=>showLibrary('library'),'i-catalog'));
       const o=A.findEntity(A.state.selected);if(o&&A.isServiceRoute(o))commands.append(commandButton('Draw route',()=>A.startServiceRoute(o),'i-dimension'));
     }else for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']])commands.append(commandButton(label,()=>A.setCameraPreset(preset),'i-cube'));
   }
@@ -189,8 +188,8 @@
     A.renderInspector();A.setMobileTab('stage');syncShell();A.resizeCanvas();setTimeout(A.fitPlan,100);
   }
   function showLibraryContext(){
-    if(A.state.workspace==='structure'){showLibrary('objects');A.setMobileTab('stage');return;}
-    showLibrary('library');A.setMobileTab('stage');
+    if(A.state.workspace==='structure'){showLibrary('objects',false);return;}
+    showLibrary('library',false);
     // Keep both plumbing and electrical fixtures discoverable in Services.
     A.renderCatalog($('#catalogSearch').value,'all');
     if(A.state.workspace==='services'){
