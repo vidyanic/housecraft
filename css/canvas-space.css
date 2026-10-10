@@ -1,0 +1,73 @@
+/* The stage owns all available space; every revealed sheet floats above it. */
+body.studio.canvas-space .app{grid-template-rows:48px minmax(0,1fr);position:relative}
+body.studio.canvas-space .workspace-navigation{grid-row:1;padding:0 12px;gap:8px;display:flex}
+body.studio.canvas-space .workspace-navigation .view-switch{flex:1;justify-content:flex-start}
+body.studio.canvas-space .workspace-navigation .view-switch button{padding:0 14px}
+body.studio.canvas-space #workspace{grid-row:2;display:block;position:relative;overflow:hidden;min-height:0}
+body.studio.canvas-space #workspace #stage{display:block!important;position:absolute;inset:0;grid-column:auto;visibility:visible}
+body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{display:flex!important;position:absolute;top:0;bottom:58px;width:min(340px,calc(100% - 56px));height:auto;z-index:35;visibility:hidden;pointer-events:none;box-shadow:0 8px 30px #1b304733;grid-column:auto;border:1px solid #d8e1e7;transition:none}
+body.studio.canvas-space #workspace #catalogPanel{left:0}
+body.studio.canvas-space #workspace #inspectorPanel{right:0}
+body.studio.canvas-space #workspace .space-open{visibility:visible!important;pointer-events:auto!important}
+body.studio.canvas-space .topbar{position:absolute;inset:0 0 auto;height:54px;z-index:45;visibility:hidden;pointer-events:none;box-shadow:0 6px 20px #1b304726}
+body.studio.canvas-space .studio-taskbar{position:absolute;left:56px;right:56px;top:8px;min-height:44px;height:auto;padding:5px 8px;border:1px solid #d8e1e7;border-radius:8px;box-shadow:0 3px 14px #1b304716;visibility:hidden;pointer-events:none;z-index:20;display:flex;flex-wrap:nowrap}
+body.studio.canvas-space .task-panel-actions{display:none}
+body.studio.canvas-space .stage-top{top:64px;left:64px;right:64px}
+body.studio.canvas-space .grid-legend{top:108px;left:64px}
+body.studio.canvas-space .space-handle{height:44px;min-width:44px;border:1px solid #d8e1e7;border-radius:6px;background:#fffffff2;color:#315b50;font-size:11px;font-weight:600;cursor:pointer;z-index:40;padding:0 10px}
+body.studio.canvas-space #stage>.space-handle{position:absolute}
+body.studio.canvas-space .space-catalog{left:6px;top:120px;writing-mode:vertical-rl;height:86px;width:38px}
+body.studio.canvas-space .space-inspector{right:6px;top:120px;writing-mode:vertical-rl;height:100px;width:38px}
+body.studio.canvas-space .space-tools{left:6px;top:8px;width:44px;padding:0}
+body.studio.canvas-space .canvas-bottom{position:absolute;left:12px;right:12px;bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;z-index:40;pointer-events:none}
+body.studio.canvas-space .canvas-bottom>*{pointer-events:auto;background:#fffffff2;border-radius:6px;border:1px solid #d8e1e7;padding:4px}
+body.studio.canvas-space .level-picker{margin:0;gap:4px}
+body.studio.canvas-space .level-picker select{width:130px}
+body.studio.canvas-space .zoom-controls{margin-left:auto;display:flex!important}
+body.studio.canvas-space #expandCanvas{height:44px;white-space:nowrap;font-weight:600;color:#24665b;padding:0 12px}
+body.studio.canvas-space .focus-view-controls{display:none}
+body.studio.canvas-space.canvas-focus .canvas-bottom{justify-content:flex-end}
+body.studio.canvas-space.canvas-focus .canvas-bottom>.level-picker,body.studio.canvas-space.canvas-focus .canvas-bottom>.zoom-controls,body.studio.canvas-space.canvas-focus .canvas-bottom>.studio-floor-display{display:none!important}
+body.studio.canvas-space.canvas-focus .canvas-bottom.bottom-open>.level-picker,body.studio.canvas-space.canvas-focus .canvas-bottom.bottom-open>.zoom-controls{display:flex!important}
+body.studio.canvas-space.canvas-focus .focus-view-controls{display:block;height:44px}
+body.studio.canvas-space.canvas-focus .stage-top,body.studio.canvas-space.canvas-focus .grid-legend,body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .compass,body.studio.canvas-space.canvas-focus .mobile-selection-chip{visibility:hidden}
+body.studio.canvas-space .desktop-bottombar,body.studio.canvas-space .mobile-tabbar,body.studio.canvas-space .floating-zoom-controls{display:none!important}
+body.studio.canvas-space .hint{bottom:66px;left:64px;max-width:calc(100% - 140px)}
+body.studio.canvas-space .compass{bottom:66px;right:16px}
+body.studio.canvas-space .mobile-selection-chip{bottom:114px;left:64px;max-width:calc(100% - 128px)}
+body.studio.canvas-space.canvas-focus .app{grid-template-rows:minmax(0,1fr)}
+body.studio.canvas-space.canvas-focus #workspace{grid-row:1}
+body.studio.canvas-space.canvas-focus .workspace-navigation{position:absolute;top:0;left:56px;right:56px;z-index:44;height:48px;visibility:hidden;pointer-events:none}
+body.studio.canvas-space.canvas-focus .workspace-navigation:focus-within,body.studio.canvas-space.canvas-focus .workspace-navigation:hover{visibility:visible;pointer-events:auto}
+body.studio.canvas-space.canvas-focus .workspace-navigation.space-open{visibility:visible;pointer-events:auto;top:54px}
+body.studio.canvas-space.canvas-focus .space-project{position:fixed;top:4px;right:6px;visibility:visible;pointer-events:auto}
+@media(max-width:900px){
+ body.studio.canvas-space .tool-text{display:none}
+ body.studio.canvas-space .studio-taskbar{overflow-x:auto;gap:4px}
+ body.studio.canvas-space .context-commands{overflow:visible;flex-shrink:0;display:flex;grid-template-columns:none}
+ body.studio.canvas-space .context-commands .task-button,body.studio.canvas-space .tool{min-height:44px;height:44px}
+ body.studio.canvas-space .topbar .brand{display:none}
+ body.studio.canvas-space .top-actions{width:100%;justify-content:space-between}
+}
+@media(max-width:699px){
+ body.studio.canvas-space .workspace-navigation{height:48px;padding:0 6px;flex-wrap:nowrap}
+ body.studio.canvas-space .workspace-navigation .view-switch{height:48px;gap:0;flex:1;min-width:0}
+ body.studio.canvas-space .workspace-navigation .view-switch button{padding:0 7px;font-size:11px;gap:3px;min-width:0;flex:1}
+ body.studio.canvas-space .workspace-navigation .view-switch button svg{display:none}
+ body.studio.canvas-space .space-project{padding:0 6px;min-width:44px}
+ body.studio.canvas-space .studio-taskbar{left:56px;right:6px;top:6px;min-height:54px;display:flex}
+ body.studio.canvas-space .toolrail{width:auto;flex-direction:row}
+ body.studio.canvas-space .canvas-bottom{left:6px;right:6px;gap:4px}
+ body.studio.canvas-space .level-picker label{display:none}
+ body.studio.canvas-space .level-picker select{width:94px;height:36px}
+ body.studio.canvas-space .level-picker .button{width:32px;min-width:32px}
+ body.studio.canvas-space #expandCanvas{font-size:11px;padding:0 6px}
+ body.studio.canvas-space .zoom-controls{gap:0;padding:2px}
+ body.studio.canvas-space .zoom-controls button{width:28px;height:38px}
+ body.studio.canvas-space #zoomLabel{font-size:9px;min-width:32px}
+ body.studio.canvas-space[data-studio-view="3d"]:not(.canvas-focus) .studio-floor-display,body.studio.canvas-space[data-studio-view="3d"].canvas-focus .bottom-open>.studio-floor-display{display:flex!important}
+ body.studio.canvas-space .studio-floor-display label{display:none}
+ body.studio.canvas-space .studio-floor-display select{width:112px}
+ body.studio.canvas-space .hint{left:54px;font-size:9px}
+}
+@media print{body.studio.canvas-space .space-handle,body.studio.canvas-space .canvas-bottom{display:none!important}}

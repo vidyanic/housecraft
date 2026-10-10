@@ -16,6 +16,7 @@
     A.initUI();
     A.initStructuralWorkspace?.();
     A.initStudioUI?.();
+    A.initCanvasSpace?.();
   }
 
   if (document.readyState === 'loading') {

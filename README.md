@@ -68,6 +68,8 @@ Calculation JSON exports the input basis, node/member model, numerical results, 
 
 ## Accessibility
 
+The canvas uses a compact 48 px workspace header. Library, Properties, Project and drawing tools reveal as overlays without resizing the drawing. Hover reveals controls with a mouse; tap toggles them on touch screens. Focused fields stay open. **Expand canvas** at the bottom hides the chrome for editing; **Restore workspace** or Escape returns it. See [CANVAS_SPACE.md](CANVAS_SPACE.md) for behavior and design tradeoffs.
+
 The searchable Objects list supports keyboard selection of rooms, walls, furniture, columns, beams, and dimensions. Inspector labels are associated with fields. Catalog cards and switches are keyboard operable. Dialogs manage focus, trap Tab, close with Escape, and return focus to their opener. Save/toast status is announced.
 
 ## Validate

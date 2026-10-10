@@ -65,4 +65,6 @@ Structural outputs are derived annotations. The analysis cache ignores those out
 
 ## Extending
 
+Canvas overlay navigation lives in `js/canvas-space.js` and `css/canvas-space.css`, initialized after the studio shell. `CANVAS_SPACE.md` describes the reveal/hide invariants and expand mode.
+
 Add catalog types to furniture-catalog.js, 2D symbols to canvas-drawing.js, and geometry to renderer3d.js. New project properties should have migration defaults and import validation. New interactions should checkpoint before mutation and preserve cancellation. Add regression coverage for relationships and browser behavior.

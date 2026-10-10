@@ -7,6 +7,7 @@
   const button=(label,id,icon)=>`<button class="button" id="${id}">${icon?A.icon(icon):''}<span>${label}</span></button>`;
   const medium=()=>innerWidth<1200;
   function showPanel(panel){
+    if(A.canvasSpace){A.canvasSpace.showPanel(panel);return;}
     const ws=$('#workspace');ws.classList.remove(panel==='catalog'?'hide-catalog':'hide-inspector');
     A.setMobileTab(panel);A.resizeCanvas();window.atelier3D?.resize();syncShell();
   }
@@ -107,7 +108,7 @@
     const backdrop=create('div','modal-backdrop');backdrop.id=id;backdrop.dataset.studioDialog='true';
     backdrop.innerHTML=`<div class="modal studio-dialog" role="dialog" aria-modal="true" aria-labelledby="${id}-title"><div class="modal-header"><div><div class="eyebrow">Atelier Plan</div><h2 id="${id}-title">${title}</h2></div><button class="button" data-studio-close="${id}" aria-label="Close ${title}">Close</button></div>${content}</div>`;
     document.body.append(backdrop);let opener;
-    const close=()=>{backdrop.classList.remove('show');opener?.focus();};backdrop.querySelector('[data-studio-close]').onclick=close;
+    const close=()=>{backdrop.classList.remove('show');if(opener?.closest('[inert]'))opener=$('#reveal-project')||$('#mobileMenuBtn');opener?.focus();};backdrop.querySelector('[data-studio-close]').onclick=close;
     backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
     backdrop.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}if(e.key==='Tab'){const els=[...backdrop.querySelectorAll('button,input,select')].filter(el=>!el.disabled&&el.getClientRects().length),first=els[0],last=els.at(-1);if(e.shiftKey&&document.activeElement===first){last.focus();e.preventDefault();}else if(!e.shiftKey&&document.activeElement===last){first.focus();e.preventDefault();}}});
     return {el:backdrop,open(){opener=document.activeElement;if(opener===document.body||!opener?.getClientRects().length)opener=$('#mobileMenuBtn');backdrop.classList.add('show');backdrop.querySelector('input,select,button')?.focus();},close};

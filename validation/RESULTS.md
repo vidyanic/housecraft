@@ -20,4 +20,8 @@ To repeat browser validation, start `node server.cjs`, open `http://127.0.0.1:41
 
 ## Studio UI redesign
 
+## Canvas space revision · 10 October 2026
+
+All 37 browser workflow groups passed, including overlay bounds/camera/bitmap invariants, touch reveal, focused-field retention, Escape focus return, mouse hover dismissal, expand/restore and responsive widths of 1440, 820 and 390 px. All 8 regression and 17 engineering groups passed. Desktop compact/expanded and tablet/mobile Properties were visually reviewed. Proofs: `canvas-desktop.png`, `canvas-expanded.png`, `canvas-tablet-properties.png`, `canvas-mobile-properties.png`. See `CANVAS_SPACE.md` for the option critique and behavior rules. The preview uses isolated test storage.
+
 The revised navigation passed all 33 browser workflows, 8 application regression groups and 17 engineering benchmark groups. New workflows validate tab keyboard behavior, selection-preserving project edits, direct export/focus return, command search, direct structural creation/results, Services catalog search and panel visibility/overflow at 1440, 820 and 390 px widths. Desktop/tablet/mobile previews and export/structural sheets were visually inspected using isolated storage. See `UI_REDESIGN.md` for the critique and `ui-*.png` for screenshots. This is workflow validation, not a full accessibility certification.
