@@ -29,3 +29,7 @@ The revised navigation passed all 33 browser workflows, 8 application regression
 ## Persistent studio refinement · 10 October 2026
 
 All 39 browser groups passed, including default visible chrome, Help placement, unique floor label, permanent vertical tools, explicit hide retention across workspace switches, temporary hover invariants, touch Hide controls and visibility restoration after Expand. All 8 application regression and 17 engineering groups passed. Desktop 1440 px, tablet 820 px and mobile 390 px were visually reviewed. `refined-desktop.png`, `refined-mobile-properties.png` and `refined-expanded.png` show the current revision using isolated storage. See `CANVAS_SPACE.md` for the SketchUp/Figma comparison and final behavior.
+
+## Canvas corners and top reveal arrows · 10 October 2026
+
+All 41 browser groups and 8 application regression groups passed. Checks cover floor/Grid/Fit ownership and hit targets inside the canvas at 1440, 820 and 390 px, Add floor remaining in the workspace bar, explicit top-arrow activation, hover overlay invariants and Expand/Restore. Desktop screenshots `canvas-corners.png` and `canvas-top-arrows.png` show restored bars and hidden bars respectively, using isolated test storage. Project/workspace reveal controls belong to the app header layer, outside the canvas. Engineering calculations were unchanged.

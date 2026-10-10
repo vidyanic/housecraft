@@ -68,7 +68,7 @@ Calculation JSON exports the input basis, node/member model, numerical results, 
 
 ## Accessibility
 
-The studio opens with visible headers and sheets, matching desktop side panels and a permanent left tool rail. Help sits beside command search; the workspace row contains the floor dropdown and canvas actions. Hide buttons explicitly collapse individual bars/sheets; hover previews use overlays without resizing the canvas. **Expand canvas** hides the headers and sheets while keeping the tool rail, and **Restore workspace** restores their previous visibility. Touch layouts show one sheet over the canvas. See [CANVAS_SPACE.md](CANVAS_SPACE.md) for the comparison and interaction rules.
+The studio opens with visible headers and sheets, matching desktop side panels and a permanent left tool rail. Help sits beside command search. The canvas corners hold floor selection, Grid and Fit; Add floor stays in the workspace row. Hide buttons explicitly collapse individual bars/sheets; hidden bars have downward-arrow reveal controls at the top, while sheet hover previews overlay the canvas without resizing it. **Expand canvas** hides the headers and sheets while keeping the tool rail and canvas controls, and **Restore workspace** restores their previous visibility. Touch layouts show one sheet over the canvas. See [CANVAS_SPACE.md](CANVAS_SPACE.md) for the comparison and interaction rules.
 
 The searchable Objects list supports keyboard selection of rooms, walls, furniture, columns, beams, and dimensions. Inspector labels are associated with fields. Catalog cards and switches are keyboard operable. Dialogs manage focus, trap Tab, close with Escape, and return focus to their opener. Save/toast status is announced.
 

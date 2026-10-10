@@ -21,7 +21,8 @@ The visual critique corrected inherited mobile panel insets that covered the rai
 ## Interaction model
 
 - Project header contains project identity, search, Help immediately beside search, file actions and history. Its minus button explicitly hides the bar.
-- Workspace row contains workspace tabs, one floor dropdown, add floor, 3D floor display where relevant, Grid and Fit. The repeated floor crumb and architecture Structure overlay toggle are removed from the visible UI.
+- Workspace row contains workspace tabs and Add floor. Active floor selection lives in the canvas's upper-left corner, with the 3D floor display where relevant. Grid and Fit occupy the upper-right corner; zoom and Expand remain at the bottom-right. The repeated floor crumb and architecture Structure overlay toggle are removed from the visible UI.
+- Hidden project/workspace bars expose compact, labeled downward arrows at the top of the app, outside the canvas. The arrows use explicit click, tap or keyboard activation, so hiding a bar does not immediately reopen it under the pointer. There are no named Project/Workspace reveal buttons in the canvas.
 - The left rail contains the active workspace's drawing/modeling tools and context commands. It stays visible in normal and expanded modes.
 - Library and Properties stay open until their Hide buttons are used. Desktop reserves their space. Explicit collapse/open changes the canvas bounds; hovering a hidden-panel handle reveals an overlay without changing bounds, bitmap size, geometry or camera state.
 - Expand canvas hides the headers and sheets, keeps the permanent rail and compact canvas zoom/restore controls, and remembers which panels were visible. Restore returns that visibility state.
