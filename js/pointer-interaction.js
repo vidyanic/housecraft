@@ -34,7 +34,7 @@
   // ── Hit testing (which entity is under the pointer) ──────────
   function hitTest(p) {
     const world = A.screenToWorld(p), f = A.floor(), s = S();
-    const showStructure = s.project.showStructure !== false;
+    const showStructure = s.workspace !== 'architecture' && s.project.showStructure !== false;
     if(showStructure && f.columns){
       for(let i=f.columns.length-1;i>=0;i--){
         const o=f.columns[i];

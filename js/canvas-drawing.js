@@ -771,7 +771,7 @@
     drawBuiltUpBoundary();
     A.floor().rooms.forEach(drawRoom);
     A.floor().walls.forEach(drawWall);
-    if(s.project.showStructure !== false){
+    if(s.workspace !== 'architecture' && s.project.showStructure !== false){
       if(A.analyzeStructure && ((A.floor().beams && A.floor().beams.length) || (A.floor().columns && A.floor().columns.length))){
         A.analyzeStructure(A.floor(), s.project);
       }

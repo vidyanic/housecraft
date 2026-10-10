@@ -7,12 +7,14 @@
     document.body.classList.add('canvas-space');app.prepend(project);ws.append(tools);
     const floorPicker=$('.level-picker'),addFloor=$('#studioAddFloor');
     $('#studioFloor').setAttribute('aria-label','Active floor');
+    floorPicker.querySelector('label').hidden=true;
     addFloor.textContent='+ Add floor';nav.append(addFloor);
     const corners=document.createElement('div');corners.className='canvas-corners';stage.append(corners);
     const floorCorner=document.createElement('div');floorCorner.className='canvas-floor-corner';floorCorner.append(floorPicker,$('.studio-floor-display'));corners.append(floorCorner,$('.canvas-actions'));$('.crumb').hidden=true;
     const help=$('#helpBtn');help.className='icon-button';help.innerHTML=A.icon('i-help');help.setAttribute('aria-label','Help and shortcuts');help.title='Help and shortcuts';$('#commandBtn').after(help);
     $('#objectsBtn').hidden=true;
     const bottom=document.createElement('div');bottom.className='canvas-bottom';ws.append(bottom);bottom.append($('.zoom-controls'));
+    const history=document.createElement('div');history.className='canvas-history';stage.append(history);history.append($('#undoBtn'),$('#redoBtn'));
     const expand=document.createElement('button');expand.id='expandCanvas';expand.className='button';expand.textContent='⤢ Expand canvas';expand.setAttribute('aria-pressed','false');bottom.append(expand);
     const surfaces={catalog:$('#catalogPanel'),inspector:$('#inspectorPanel'),project,navigation:nav,tools};
     const pinned={catalog:innerWidth>=1100||innerWidth<700,inspector:innerWidth>=700,project:true,navigation:true,tools:true},timers={},handles={};let savedPins=null;
@@ -39,7 +41,7 @@
       const hover=e=>{if(e.pointerType==='mouse'&&matchMedia('(hover:hover)').matches)show(key,'hover');};
       if(key==='catalog'||key==='inspector'){handle.addEventListener('pointerenter',hover);node.addEventListener('pointerenter',hover);}
       handle.addEventListener('pointerleave',()=>later(key));node.addEventListener('pointerleave',()=>later(key));node.addEventListener('focusout',()=>later(key));node.addEventListener('focusin',()=>clearTimeout(timers[key]));
-      if(key==='project'||key==='navigation'){const close=document.createElement('button');close.className='icon-button chrome-hide';close.innerHTML='−';close.title='Hide '+(key==='project'?'project bar':'workspace bar');close.setAttribute('aria-label',close.title);close.onclick=()=>{hide(key,true);handle.focus();};node.append(close);}
+      if(key==='project'||key==='navigation'){const close=document.createElement('button');close.className='icon-button chrome-hide';close.textContent='▴';close.title='Hide '+(key==='project'?'project bar':'workspace bar');close.setAttribute('aria-label',close.title);close.onclick=()=>{hide(key,true);handle.focus();};node.append(close);}
       node.classList.toggle('space-open',pinned[key]);node.inert=!pinned[key];handle.hidden=pinned[key];
     }
     function focus(on){

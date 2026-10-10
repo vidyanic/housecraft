@@ -60,7 +60,11 @@ body.studio.canvas-space .canvas-bottom>*{pointer-events:auto;background:#fff;bo
 body.studio.canvas-space .zoom-controls{margin:0;display:flex!important;padding:3px;gap:4px}
 body.studio.canvas-space .zoom-controls button{height:32px;width:32px}
 body.studio.canvas-space #expandCanvas{height:40px;white-space:nowrap;font-weight:600;color:#24665b;padding:0 10px;font-size:11px}
-body.studio.canvas-space .grid-legend{top:62px;left:14px;font-size:9px;right:auto}
+body.studio.canvas-space .grid-legend{top:auto;bottom:58px;left:50%;transform:translateX(-50%);font-size:9px;right:auto;white-space:nowrap;z-index:40;pointer-events:none;background:#ffffffdc;border-radius:4px;padding:3px 6px}
+body.studio.canvas-space .canvas-history{position:absolute;left:14px;bottom:12px;display:flex;gap:4px;padding:3px;background:#fff;border:1px solid #dce3e9;border-radius:6px;box-shadow:0 2px 8px #2337450a;z-index:40}
+body.studio.canvas-space .canvas-history #undoBtn,body.studio.canvas-space .canvas-history #redoBtn{display:inline-flex!important;width:32px;min-width:32px;height:32px}
+body.studio.canvas-space .level-picker label{display:none}
+body.studio.canvas-space .chrome-hide{font-size:20px}
 body.studio.canvas-space .hint{bottom:62px;left:14px;max-width:calc(100% - 70px);font-size:9px;background:#ffffffc9}
 body.studio.canvas-space .compass{bottom:64px;right:14px;width:32px;height:32px}
 body.studio.canvas-space.canvas-focus .app{--library:0px;--properties:0px;--project-height:0px;--nav-height:0px}
@@ -77,13 +81,13 @@ body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-naviga
 }
 @media(max-width:1099px){
  body.studio.canvas-space .app{--library:0px;--properties:0px}
- body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{width:300px;max-width:calc(100% - 72px);top:62px;bottom:58px;box-shadow:0 6px 24px #1b304726}
+ body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{width:300px;max-width:calc(100% - 72px);top:62px;bottom:82px;box-shadow:0 6px 24px #1b304726}
 }
 @media(max-width:699px){
  body.studio.canvas-space .app{--rail:56px;--project-height:48px;--nav-height:48px}
  body.studio.canvas-space .topbar{height:48px;padding:0 8px;gap:4px}
  body.studio.canvas-space .topbar .brand{display:flex}
- body.studio.canvas-space .brand-mark,body.studio.canvas-space #projectsBtn,body.studio.canvas-space #undoBtn{display:none!important}
+ body.studio.canvas-space .brand-mark,body.studio.canvas-space #projectsBtn{display:none!important}
  body.studio.canvas-space .project-name{max-width:112px;width:112px;font-size:11px;padding:0;margin:0;border:0}
  body.studio.canvas-space .top-actions{gap:3px;width:auto;justify-content:flex-end}
  body.studio.canvas-space #commandBtn{display:inline-flex!important}
@@ -114,6 +118,9 @@ body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-naviga
  body.studio.canvas-space[data-studio-view="3d"] .canvas-floor-corner{flex-direction:row;gap:4px}
  body.studio.canvas-space #workspace #catalogPanel{left:56px}
  body.studio.canvas-space .canvas-bottom{left:64px;right:8px;bottom:8px;gap:5px}
+ body.studio.canvas-space .canvas-history{left:8px;bottom:8px;gap:0}
+ body.studio.canvas-space .canvas-history #undoBtn,body.studio.canvas-space .canvas-history #redoBtn{width:36px;min-width:36px;height:36px}
+ body.studio.canvas-space .hint{bottom:86px}
  body.studio.canvas-space .zoom-controls{gap:0}
  body.studio.canvas-space .zoom-controls button{height:34px;width:28px}
  body.studio.canvas-space #expandCanvas{font-size:10px;padding:0 7px}

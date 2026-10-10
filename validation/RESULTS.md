@@ -32,4 +32,6 @@ All 39 browser groups passed, including default visible chrome, Help placement, 
 
 ## Canvas corners and top reveal arrows · 10 October 2026
 
+Follow-up: 43 browser groups and 8 regression groups passed after moving Undo/Redo to the canvas bottom-left, centring the grid legend at the bottom, removing the floor label and using upward collapse arrows. A bitmap comparison verifies Architecture does not render structural beams/columns; hit tests verify hidden members cannot be selected. Structure retains its member drawing. Responsive checks include Undo/Redo access at 1440, 820 and 390 px. Proofs: `canvas-history-desktop.png`, `canvas-history-mobile.png`.
+
 All 41 browser groups and 8 application regression groups passed. Checks cover floor/Grid/Fit ownership and hit targets inside the canvas at 1440, 820 and 390 px, Add floor remaining in the workspace bar, explicit top-arrow activation, hover overlay invariants and Expand/Restore. Desktop screenshots `canvas-corners.png` and `canvas-top-arrows.png` show restored bars and hidden bars respectively, using isolated test storage. Project/workspace reveal controls belong to the app header layer, outside the canvas. Engineering calculations were unchanged.
