@@ -1,0 +1,262 @@
+{
+  "date": "2026-10-12",
+  "checks": [
+    "Application schema validation",
+    "Frame joints resolve except explicitly unsupported RC wall stiffness",
+    "No unresolved column/RC-wall clashes in checked hosted openings",
+    "Rotated stair footprint does not overlap columns or beams",
+    "Column footing SPACE rectangles remain at least 30.48 cm inside assumed boundary; capacity and eccentricity uncomputed"
+  ],
+  "site": {
+    "x": 110.4,
+    "y": 132.76,
+    "w": 1981.2,
+    "h": 1066.8
+  },
+  "xs": [
+    260.88,
+    515,
+    914.4,
+    1287.6,
+    1687,
+    1941.12
+  ],
+  "ys": [
+    283.24,
+    706.62,
+    1130
+  ],
+  "baysX": [
+    254.12,
+    399.4,
+    373.2,
+    399.4,
+    254.12
+  ],
+  "baysY": [
+    382.92,
+    382.92
+  ],
+  "columnsPerStorey": 18,
+  "primaryBeamsPerStorey": 23,
+  "cantileverStubsPerStorey": 18,
+  "rcWallReservationsPerStorey": 6,
+  "gravityCaveat": "Idea 2 load capacity not analysed. Idea 1 reactions must not be used for this different frame.",
+  "originalRooms": [
+    {
+      "name": "Shared Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Guest Room",
+      "widthFt": 12,
+      "depthFt": 15,
+      "areaSqFt": 180
+    },
+    {
+      "name": "kitchen",
+      "widthFt": 8.5,
+      "depthFt": 13,
+      "areaSqFt": 110.5
+    },
+    {
+      "name": "Living Room + Entrance",
+      "widthFt": 12,
+      "depthFt": 16.67,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Dinning +Pooja",
+      "widthFt": 12,
+      "depthFt": 10.83,
+      "areaSqFt": 130
+    },
+    {
+      "name": "Open Stairs",
+      "widthFt": 11.75,
+      "depthFt": 8.25,
+      "areaSqFt": 96.94
+    },
+    {
+      "name": "Children Room",
+      "widthFt": 12.5,
+      "depthFt": 16,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 10,
+      "depthFt": 16,
+      "areaSqFt": 160
+    },
+    {
+      "name": "Master Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 7.67,
+      "depthFt": 8,
+      "areaSqFt": 61.33
+    },
+    {
+      "name": "Master Bedroom",
+      "widthFt": 15,
+      "depthFt": 14,
+      "areaSqFt": 210
+    },
+    {
+      "name": "Private Living Room",
+      "widthFt": 12,
+      "depthFt": 16.75,
+      "areaSqFt": 201
+    },
+    {
+      "name": "Balcony",
+      "widthFt": 12.08,
+      "depthFt": 5.33,
+      "areaSqFt": 64.44
+    }
+  ],
+  "proposedRooms": [
+    {
+      "name": "Shared Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Guest Room",
+      "widthFt": 12,
+      "depthFt": 12.87,
+      "areaSqFt": 154.48
+    },
+    {
+      "name": "kitchen",
+      "widthFt": 8.5,
+      "depthFt": 13,
+      "areaSqFt": 110.5
+    },
+    {
+      "name": "Living Room + Entrance",
+      "widthFt": 12,
+      "depthFt": 16.67,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Dinning +Pooja",
+      "widthFt": 12,
+      "depthFt": 10.83,
+      "areaSqFt": 130
+    },
+    {
+      "name": "Open Stairs",
+      "widthFt": 11.75,
+      "depthFt": 8.25,
+      "areaSqFt": 96.94
+    },
+    {
+      "name": "Children Room",
+      "widthFt": 12.5,
+      "depthFt": 16,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 10,
+      "depthFt": 16,
+      "areaSqFt": 160
+    },
+    {
+      "name": "Master Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 7.67,
+      "depthFt": 8,
+      "areaSqFt": 61.33
+    },
+    {
+      "name": "Master Bedroom",
+      "widthFt": 15,
+      "depthFt": 14,
+      "areaSqFt": 210
+    },
+    {
+      "name": "Private Living Room",
+      "widthFt": 12,
+      "depthFt": 18.89,
+      "areaSqFt": 226.65
+    },
+    {
+      "name": "Balcony",
+      "widthFt": 12.08,
+      "depthFt": 5.33,
+      "areaSqFt": 64.44
+    }
+  ],
+  "issues": [
+    {
+      "message": "Structural wall shell stiffness is not represented by this frame solver. A wall-capable solver is required."
+    },
+    {
+      "message": "Structural wall shell stiffness is not represented by this frame solver. A wall-capable solver is required."
+    }
+  ],
+  "notes": [
+    "Concept geometry only; no member, reinforcement, footing or earthquake safety certification.",
+    "Design brief includes one future occupied second floor plus its roof; future loads and foundations require engineering design now.",
+    "Original structure discarded at owner request. Source architecture retained separately; coordinated alternative changes rooms.",
+    "Assumed plot origin is centred on source built-up envelope; boundary survey and setbacks must be confirmed.",
+    "Column and beam sizes are coordination envelopes, not approved sizes. Reinforcement intentionally not specified.",
+    "240 cm footing rectangles are spatial reservations only, not designed foundations.",
+    "60 cm loaded perimeter slab extensions and additional 76.2 cm roof shade where space permits: do not treat as foundation counterweights.",
+    "No RC wall, column or beam may be removed for future partition changes.",
+    "Stair landing, guards and headroom require architectural/structural detailing; the 3D stair is a space reservation only.",
+    "Architecture retained with local balcony +25 cm shift, rotated stair within existing zone and entrance-door repositioning.",
+    "South support row at y=1130 cm requires eccentric/combined/raft foundation design. Centred pad footings do NOT meet the boundary-clearance brief.",
+    "Outer longitudinal beams omitted symmetrically to clear the rotated stair. Edge slabs, stair landing support and edge collectors need plate/frame design.",
+    "No uniform perimeter chajja: only fit 2.5 ft projections where the existing building leaves room inside the assumed plot.",
+    "Guest/private divider shifted north 62.54 cm to clear the children doorway from a column; guest shortened, private living enlarged.",
+    "RC wall zones moved to existing perimeter/partition lines. Geometric column symmetry does not establish stiffness/mass symmetry."
+  ],
+  "idea": 2,
+  "roomChanges": "Balcony shifted 25 cm; guest/private divider moved north 62.54 cm, guest shortened and private living enlarged; other room rectangles unchanged.",
+  "balconyShiftCm": 25,
+  "movedOpenings": [
+    {
+      "id": "40a5f3b4-4cba-4e1b-ab97-bcb163f8bcc7",
+      "type": "door",
+      "shiftCm": 15
+    },
+    {
+      "id": "02cb8aaa-d966-4253-98fc-07f5deacb0a5",
+      "type": "door",
+      "shiftCm": 60
+    },
+    {
+      "id": "c4e0b4ea-b684-4d4f-847a-534ed7e42cfc",
+      "type": "door",
+      "shiftCm": -35
+    },
+    {
+      "id": "aff17cce-dff6-4737-a305-266085fc031f",
+      "type": "door",
+      "shiftCm": -50
+    },
+    {
+      "id": "9ad3b42b-ccb7-43d3-b842-10679f6a89e6",
+      "type": "casement-window",
+      "shiftCm": 10
+    }
+  ],
+  "unresolvedOpenings": [],
+  "sourceStructureDiscarded": true
+}

@@ -8,9 +8,9 @@
     const floorPicker=$('.level-picker'),addFloor=$('#studioAddFloor');
     $('#studioFloor').setAttribute('aria-label','Active floor');
     floorPicker.querySelector('label').hidden=true;
-    addFloor.textContent='+ Add floor';nav.append(addFloor);
+    addFloor.textContent='+ Floors';addFloor.title='Add or manage floors and 3D stacking';addFloor.setAttribute('aria-label','Add or manage floors');nav.append(addFloor);
     const corners=document.createElement('div');corners.className='canvas-corners';stage.append(corners);
-    const floorCorner=document.createElement('div');floorCorner.className='canvas-floor-corner';floorCorner.append(floorPicker,$('.studio-floor-display'));corners.append(floorCorner,$('.canvas-actions'));$('.crumb').hidden=true;
+    const floorCorner=document.createElement('div');floorCorner.className='canvas-floor-corner';floorCorner.append(floorPicker);corners.append(floorCorner,$('.canvas-actions'));$('.canvas-actions').append($('.studio-floor-display'));$('.crumb').hidden=true;
     const help=$('#helpBtn');help.className='icon-button';help.innerHTML=A.icon('i-help');help.setAttribute('aria-label','Help and shortcuts');help.title='Help and shortcuts';$('#commandBtn').after(help);
     $('#objectsBtn').hidden=true;
     const bottom=document.createElement('div');bottom.className='canvas-bottom';ws.append(bottom);bottom.append($('.zoom-controls'));
@@ -51,7 +51,7 @@
       layout();requestAnimationFrame(()=>{A.resizeCanvas();window.atelier3D?.resize();});
     }
     expand.onclick=()=>focus(!document.body.classList.contains('canvas-focus'));
-    A.canvasSpace={showPanel:show,hidePanel:hide,focus};
+    A.canvasSpace={showPanel:show,hidePanel:hide,focus,revealCanvas(){if(innerWidth<1100){hide('catalog',true);hide('inspector',true);}ws.dataset.mobileTab='stage';A.studioUI.sync();}};
     A.setMobileTab=key=>{if(key!=='stage')show(key);};window.setMobileTab=A.setMobileTab;
     A.toggleDesktopPanel=key=>pinned[key]?hide(key,true):show(key);
     for(const [key,id] of [['catalog','closeCatalogBtn'],['inspector','closeInspectorBtn']]){const close=$('#'+id);close.title='Hide '+(key==='catalog'?'Library':'Properties');close.setAttribute('aria-label',close.title);close.onclick=()=>{hide(key,true);handles[key].focus();};}

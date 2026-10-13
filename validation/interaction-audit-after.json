@@ -1,0 +1,162 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32"
+  },
+  "scope": "Node CPU microbenchmarks; excludes canvas, DOM, GPU and browser scheduling. Synthetic fixtures, not FPS measurements.",
+  "findings": {
+    "aspectResize": {
+      "expectedFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "actualFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "w": 150,
+        "d": 75
+      }
+    },
+    "snappedResize": {
+      "expectedFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "actualFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "w": 100,
+        "d": 50
+      }
+    },
+    "smallFixtureResize": {
+      "w": 11,
+      "d": 6
+    },
+    "invalidScale": {
+      "finite": true,
+      "serializedWidth": 100
+    },
+    "groupDeselect": {
+      "primary": "a",
+      "selectedIds": [
+        "a"
+      ]
+    },
+    "gridLookup": {
+      "entityFound": true,
+      "inAllEntities": true
+    },
+    "copyWithoutName": {
+      "hasOwnName": false
+    },
+    "routeScale": {
+      "beforeLength": 141.4213562373095,
+      "afterLength": 282.842712474619,
+      "expectedUniformLength": 282.842712474619,
+      "verticalDelta": 200
+    }
+  },
+  "timings": [
+    {
+      "entitiesPerCollection": 100,
+      "jsonBytes": 17111,
+      "stringify": {
+        "medianMs": 0.082,
+        "p95Ms": 0.089
+      },
+      "armAndClick": {
+        "medianMs": 0.001,
+        "p95Ms": 0.006
+      },
+      "analyticBounds": {
+        "medianMs": 0.234,
+        "p95Ms": 0.354
+      },
+      "cornerBoundsReference": {
+        "medianMs": 0.363,
+        "p95Ms": 0.651
+      },
+      "groupLookup": {
+        "medianMs": 0.117,
+        "p95Ms": 0.225
+      },
+      "smartGuides": {
+        "medianMs": 1.33,
+        "p95Ms": 2.424
+      },
+      "wallFaces": {
+        "medianMs": 0.695,
+        "p95Ms": 1.1
+      }
+    },
+    {
+      "entitiesPerCollection": 500,
+      "jsonBytes": 87015,
+      "stringify": {
+        "medianMs": 0.822,
+        "p95Ms": 1.258
+      },
+      "armAndClick": {
+        "medianMs": 0.001,
+        "p95Ms": 0.019
+      },
+      "analyticBounds": {
+        "medianMs": 0.996,
+        "p95Ms": 1.955
+      },
+      "cornerBoundsReference": {
+        "medianMs": 1.894,
+        "p95Ms": 3.186
+      },
+      "groupLookup": {
+        "medianMs": 0.309,
+        "p95Ms": 0.656
+      },
+      "smartGuides": {
+        "medianMs": 9.397,
+        "p95Ms": 11.041
+      },
+      "wallFaces": {
+        "medianMs": 2.926,
+        "p95Ms": 4.309
+      }
+    },
+    {
+      "entitiesPerCollection": 1000,
+      "jsonBytes": 174895,
+      "stringify": {
+        "medianMs": 0.896,
+        "p95Ms": 1.65
+      },
+      "armAndClick": {
+        "medianMs": 0.001,
+        "p95Ms": 0.001
+      },
+      "analyticBounds": {
+        "medianMs": 3.287,
+        "p95Ms": 4.312
+      },
+      "cornerBoundsReference": {
+        "medianMs": 3.473,
+        "p95Ms": 6.175
+      },
+      "groupLookup": {
+        "medianMs": 0.609,
+        "p95Ms": 0.952
+      },
+      "smartGuides": {
+        "medianMs": 12.101,
+        "p95Ms": 13.396
+      },
+      "wallFaces": {
+        "medianMs": 5.929,
+        "p95Ms": 8.397
+      }
+    }
+  ]
+}

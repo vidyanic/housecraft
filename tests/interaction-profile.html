@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Canvas interaction profiling</title>
+<style>body{font:14px system-ui;margin:16px;background:#f6f7f3;color:#253d30}button,select{padding:10px;margin:4px}iframe{height:760px;border:1px solid #bcc9c0;display:block}pre{white-space:pre-wrap;max-height:180px;overflow:auto}.pass{color:#206a42}.fail{color:#b42727}</style>
+<h1>Canvas interaction profiling</h1><p>Isolated fixtures. Touch tests use browser PointerEvents with pointerType=touch; this is emulation, not a physical device.</p>
+<button id="profile" disabled>Profile mouse and touch</button><button id="verify" disabled>Verify interaction invariants</button><button id="demo" disabled>Prepare manual canvas demo</button>
+<label>Viewport <select id="width"><option>1440</option><option>820</option><option>390</option></select></label>
+<p id="status">Loading…</p><pre id="output"></pre><iframe id="app" src="../index.html?test=1" style="width:1440px" title="Interaction test workspace"></iframe>
+<script src="interaction-profile.js"></script></html>

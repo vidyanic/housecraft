@@ -30,14 +30,14 @@
     if(!initialized)return;
     const body=$('#inspectorBody'),struct=!!body.querySelector('[data-structural-editor]'),selected=!!A.state.selected&&A.state.inspectorMode!=='project';
     const key=struct?'structure':A.state.viewMode==='3d'?'3d':selected?'selection':'project';
-    const tabs=struct?[...(selected?[['member','Member']]:[]),['model','Model'],['basis','Basis'],['review','Review'],['results','Results']]:key==='3d'?[['view','View'],['sun','Sun'],['project','Project'],...(selected?[['properties','Object']]:[])]:selected?[['properties','Properties'],['checks','Checks'],['project','Project']]:[['project','Project'],['checks','Checks']];
+    const tabs=struct?[...(selected?[['member','Member']]:[]),['model','Model'],['basis','Basis'],['review','Review'],['results','Results'],['project','Project']]:key==='3d'?[['view','View'],['sun','Sun'],['project','Project'],...(selected?[['properties','Object']]:[])]:selected?[['properties','Properties'],['checks','Checks'],['project','Project']]:[['project','Project'],['checks','Checks']];
     if(key!==inspectorKey||selected&&inspectorSelection!==A.state.selected){activeSheet=struct?(selected?'member':'model'):key==='3d'?(selected?'properties':'view'):selected?'properties':'project';inspectorKey=key;}
     inspectorSelection=selected?A.state.selected:'';
     if(!tabs.some(t=>t[0]===activeSheet))activeSheet=tabs[0][0];
     const root=struct?body.firstElementChild:body;
     [...root.children].forEach(el=>{
       const name=sectionName(el);let sheet;
-      if(struct){sheet=el.id==='structEntity'?'member':name.includes('design basis')?'basis':name.includes('propos')?'review':name.includes('calculation results')?'results':'model';if(el.querySelector('#structAnalyze')||name.startsWith('schedule'))el.dataset.studioToolbar='true';}
+      if(struct){sheet=el.dataset.projectSettings?'project':el.id==='structEntity'||el.dataset.copyFloor?'member':name.includes('design basis')?'basis':name.includes('propos')?'review':name.includes('calculation results')?'results':'model';if(el.querySelector('#structAnalyze')||name.startsWith('schedule'))el.dataset.studioToolbar='true';}
       else sheet=name.includes('3d camera')?'view':name.includes('sun &')?'sun':name.includes('layout check')||name.includes('plan readiness')?'checks':selected?'properties':'project';
       el.dataset.sheet=sheet;
       if(el.matches('.empty-selection'))el.dataset.studioIntro='true';
@@ -60,6 +60,7 @@
     }
   }
   function chooseSheet(key){
+    if(key==='project'&&inspectorKey==='structure'){openProjectSettings();return;}
     if(['project','view','sun'].includes(key)&&A.state.selected&&A.state.inspectorMode!=='project'&&['selection','3d'].includes(inspectorKey)){
       A.state.inspectorMode='project';activeSheet=key;A.renderInspector();return;
     }
@@ -67,6 +68,7 @@
     if(key==='basis'){const d=$('#structBasis')?.closest('details');if(d)d.open=true;}
   }
   function openProperties(){A.state.inspectorMode=null;A.renderInspector();showPanel('inspector');}
+  function openProjectSettings(){A.state.inspectorMode='project';A.renderInspector();activeSheet='project';applySheet();showPanel('inspector');$('#inspectorBody').scrollTop=0;}
   function syncShell(){
     if(!initialized)return;
     const s=A.state,ws=$('#workspace'),discipline=s.viewMode==='3d'?'3d':s.workspace||'architecture';
@@ -77,7 +79,7 @@
     $('#tabBtnInspector').classList.toggle('active',!ws.classList.contains('hide-inspector')&&(!medium()||panel==='inspector'));
     $('#tabBtnCatalog').setAttribute('aria-pressed',String($('#tabBtnCatalog').classList.contains('active')));
     $('#tabBtnInspector').setAttribute('aria-pressed',String($('#tabBtnInspector').classList.contains('active')));
-    const k=[discipline,s.selected,!!s.structuralReport,s.tool].join(':');
+    const k=[discipline,s.selected,!!s.structuralReport,s.tool,!!s.multiSelect,s.transform3DMode,A.structuralLayers.interior,!!s.wallPlotGuide].join(':');
     if(k!==contextKey){contextKey=k;renderContext(discipline);}
     const select=$('#studioFloor');const signature=s.project.floors.map(f=>f.id+f.name).join('|');
     if(select.dataset.signature!==signature){select.innerHTML=s.project.floors.map((f,i)=>`<option value="${i}">${esc(f.name)}</option>`).join('');select.dataset.signature=signature;}
@@ -86,22 +88,35 @@
     $('.view-switch').querySelectorAll('button').forEach(b=>{const on=b.dataset.view==='3d'?discipline==='3d':b.dataset.workspace===discipline;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
     $('#studioSelection').textContent=A.findEntity(s.selected)?.name||A.findEntity(s.selected)?.tag||(s.selectedIds.size>1?s.selectedIds.size+' selected':'No selection');
     const selected=A.findEntity(s.selected),actions=$('#selectionActions');actions.hidden=!s.selected||s.inspectorMode==='project';
-    if(actions.dataset.selection!==s.selected){actions.dataset.selection=s.selected||'';actions.replaceChildren();if(selected&&!['column','beam','slab','load','structural-wall'].includes(selected.type)){actions.append(commandButton('Duplicate',A.duplicateSelected,'i-cube'));if(A.floor().items.includes(selected))actions.append(commandButton('Rotate',A.rotateSelected,'i-undo'));}actions.append(commandButton('Delete',A.deleteSelected,'i-close'));}
+    if(actions.dataset.selection!==s.selected){actions.dataset.selection=s.selected||'';actions.replaceChildren();if(selected&&!['column','beam','slab','load','structural-wall'].includes(selected.type)){actions.append(commandButton('Duplicate',A.duplicateSelected,'i-cube'));if(A.floor().items.includes(selected))actions.append(commandButton('Rotate',A.rotateSelected,'i-undo'));}actions.append(commandButton('Copy to floor',()=>{openProperties();$('#copyTargetFloor')?.scrollIntoView({block:'center'});$('#copyTargetFloor')?.focus();},'i-cube'));actions.append(commandButton('Delete',A.deleteSelected,'i-close'));}
     renderTree();
   }
   function commandButton(label,action,icon){const el=create('button','task-button',icon?A.icon(icon)+'<span>'+label+'</span>':label);el.onclick=action;return el;}
   function renderContext(discipline){
     const tools=$('#toolrail'),commands=$('#contextCommands');commands.replaceChildren();
-    tools.querySelectorAll('[data-tool]').forEach(b=>{const t=b.dataset.tool;b.hidden=discipline==='3d'||discipline==='structure'&&!['select','pan'].includes(t)||discipline==='services'&&!['select','pan','dimension'].includes(t)||discipline==='architecture'&&['column','beam'].includes(t);b.setAttribute('aria-pressed',String(t===A.state.tool));});
+    tools.querySelectorAll('[data-tool]').forEach(b=>{const t=b.dataset.tool;b.hidden=discipline==='3d'||discipline==='structure'&&!['select','pan','column','beam'].includes(t)||discipline==='services'&&!['select','pan','dimension'].includes(t)||discipline==='architecture'&&['column','beam'].includes(t);b.setAttribute('aria-pressed',String(t===A.state.tool));b.draggable=discipline==='structure'&&['column','beam'].includes(t);b.style.touchAction=b.draggable?'none':'';});
+    if(['architecture','services'].includes(discipline)){
+      const multi=commandButton(A.state.multiSelect?'Finish selecting':'Select multiple',()=>{A.setTool('select');A.state.multiSelect=!A.state.multiSelect;A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext(discipline);A.showHint(A.state.multiSelect?'Tap objects to add or remove · Finish selecting to move the selection':'Drag selected objects to move');});multi.setAttribute('aria-pressed',String(!!A.state.multiSelect));multi.id='multiSelectObjects';commands.append(multi);commands.append(commandButton('Next overlapping element',A.cycleOverlapSelection));
+    }else A.state.multiSelect=false;
     if(discipline==='structure'){
-      for(const [type,label] of [['column','Column'],['beam','Beam'],['slab','Slab'],['structural-wall','RC wall'],['load','Load'],['grid','Grid']])commands.append(commandButton(label,()=>A.addStructuralObject(type),'i-'+(type==='column'?'pillar':type==='beam'?'beam':'grid')));
+      const guides=commandButton('Layout guides',()=>{chooseSheet('model');showPanel('inspector');$('#structGuide')?.scrollIntoView({block:'center'});});guides.id='structLayoutGuides';commands.append(guides);
+      const interior=commandButton(A.structuralLayers.interior?'Hide interior':'Show interior',()=>{A.structuralLayers.interior=!A.structuralLayers.interior;A.renderInspector();A.draw();renderContext('structure');});interior.id='structInteriorToggle';interior.setAttribute('aria-pressed',String(A.structuralLayers.interior));commands.append(interior);
+      for(const [type,label] of [['slab','Slab'],['structural-wall','RC wall'],['load','Load'],['grid','Grid']]){const button=commandButton(label,()=>A.addStructuralObject(type),'i-grid');button.dataset.structAdd=type;button.draggable=true;button.style.touchAction='none';button.title='Click to add · drag onto the plan';commands.append(button);};
       commands.append(commandButton('Screening',()=>{$('#structAnalyze')?.click();activeSheet='results';prepareInspector();showPanel('inspector');}));
       commands.append(commandButton('Modal analysis',()=>{$('#structDynamic')?.click();activeSheet='results';prepareInspector();showPanel('inspector');}));
-    }else if(discipline==='architecture')commands.append(commandButton('Trace rooms',A.deriveRooms,'i-room'));
+    }else if(discipline==='architecture'){
+      const square=commandButton('Square walls 90°',A.squareWalls,'i-wall');square.id='squareWalls';square.title='Align current-floor walls to plot axes, keeping joined corners and locked walls';commands.append(square);
+      const guide=commandButton('Plot-axis guide',()=>{const focused=document.activeElement===guide;A.state.wallPlotGuide=!A.state.wallPlotGuide;A.draw();renderContext('architecture');if(focused)$('#wallPlotGuide').focus();A.showHint(A.state.wallPlotGuide?'Draw or edit walls parallel to plot width (X) or length (Y) · Alt temporarily positions freely':'Free wall drawing and editing');});guide.id='wallPlotGuide';guide.setAttribute('aria-pressed',String(!!A.state.wallPlotGuide));guide.title='Guide new walls and existing wall endpoints/rotation parallel to plot width (X) or length/depth (Y)';commands.append(guide);
+      if(A.findEntity(A.state.selected)?.type==='wall')for(const [axis,label] of [['width','Parallel to width'],['length','Parallel to length']]){const b=commandButton(label,()=>A.alignSelectedWall(axis),'i-wall');b.id='wallParallel-'+axis;b.disabled=!A.canTransform(A.findEntity(A.state.selected));b.title='Align selected wall to plot '+axis+', retaining its start and length';commands.append(b);}
+      commands.append(commandButton('Trace rooms',A.deriveRooms,'i-room'));
+    }
     else if(discipline==='services'){
       for(const [type,label] of [['cold-water-pipe','Water pipe'],['waste-pipe','Drain'],['electrical-wire','Wiring']]){const spec=A.CATALOG.find(o=>o.type===type);if(spec)commands.append(commandButton(label,()=>A.addObjectToPlan(type),'i-dimension'));}
       const o=A.findEntity(A.state.selected);if(o&&A.isServiceRoute(o))commands.append(commandButton('Draw route',()=>A.startServiceRoute(o),'i-dimension'));
-    }else for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']])commands.append(commandButton(label,()=>A.setCameraPreset(preset),'i-cube'));
+    }else{
+      for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']])commands.append(commandButton(label,()=>A.setCameraPreset(preset),'i-cube'));
+      for(const [mode,label,hint] of [['orbit','Orbit','Drag to orbit · Shift-drag an object to move'],['move','Move objects','Drag an unlocked object to move · Escape cancels'],['rotate','Rotate objects','Drag horizontally to rotate · Shift snaps to 15° · Escape cancels'],['scale','Scale objects','Drag horizontally for uniform scale · Escape cancels']]){const button=commandButton(label,()=>{window.atelier3D?.setManipulationMode(mode);A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext('3d');A.showHint(hint);});button.setAttribute('aria-pressed',String((A.state.transform3DMode||'orbit')===mode));button.disabled=mode!=='orbit'&&!!A.state.project.camera.allFloors;commands.append(button);}
+    }
   }
   function dialog(id,title,content){
     const backdrop=create('div','modal-backdrop');backdrop.id=id;backdrop.dataset.studioDialog='true';
@@ -130,7 +145,7 @@
     const exportDialog=dialog('studioExport','Export & print','<div id="exportOptions"></div>');
     const planning=$('#planningTools');planning.querySelector('details').open=true;$('#exportOptions').append(planning);
     planning.querySelector('summary').hidden=true;planning.querySelector('#traceRoomsBtn').hidden=true;
-    const modelViewLabel=planning.querySelector('label[for="floorViewMode"]'),floorView=$('#floorViewMode');const viewControls=create('div','studio-floor-display');viewControls.append(modelViewLabel,floorView);nav.append(viewControls);
+    const floorView=$('#floorViewMode');const viewControls=create('div','studio-floor-display');viewControls.append(floorView);nav.append(viewControls);
     planning.prepend(commandButton('Project file · JSON',A.exportProject,'i-download'));$('#exportBtn').onclick=()=>exportDialog.open();$('#menuExport').onclick=()=>{$('#mobileMenuPopover').classList.remove('show');exportDialog.open();};
     const calculation=commandButton('Structural calculations · JSON',()=>{const report=A.engineeringReport(A.state.project,!!A.state.structuralReport?.dynamic),url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='atelier-structural-calculations.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},'i-download');planning.append(calculation);
     const tabs=create('div','property-tabs');tabs.id='propertyTabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Property sheets');$('#inspectorPanel').insertBefore(tabs,$('#inspectorBody'));
@@ -155,20 +170,21 @@
     const oldSelect=A.select;A.select=id=>{A.state.inspectorMode=null;oldSelect(id);if(!medium()&&id)showPanel('inspector');prepareInspector();};
     const oldStructuralSelect=A.selectStructural;A.selectStructural=id=>{A.state.inspectorMode=null;oldStructuralSelect(id);prepareInspector();};
     const oldInspector=A.renderInspector;A.renderInspector=()=>{oldInspector();prepareInspector();};
-    const oldDraw=A.draw;A.draw=()=>{oldDraw();syncShell();};
+    const oldDraw=A.draw;A.draw=()=>{oldDraw();if(!(A.state.pointerBackup&&(A.state.interaction?.activated||A.state.nudgeActive)))syncShell();};
     const oldQueue=A.queueSave;A.queueSave=()=>{oldQueue();syncShell();};
     const oldWorkspace=A.setWorkspace;A.setWorkspace=next=>{A.state.inspectorMode=null;oldWorkspace(next);A.setMobileTab('stage');showLibraryContext();prepareInspector();};
     const oldView=A.setView;A.setView=next=>{A.state.inspectorMode=next==='3d'?'project':null;oldView(next);A.setMobileTab('stage');prepareInspector();};
-    const oldTool=A.setTool;A.setTool=next=>{if(A.state.workspace==='structure'&&!['select','pan'].includes(next)){A.showToast('Use the structural creation tools above the canvas');return;}oldTool(next);if(medium())A.setMobileTab('stage');syncShell();};
+    const oldTool=A.setTool;A.setTool=next=>{if(A.state.workspace==='structure'&&!['select','pan','column','beam'].includes(next)){A.showToast('Use the structural creation tools above the canvas');return;}oldTool(next);if(medium())A.setMobileTab('stage');syncShell();};
     // Local editor callbacks also rerender the body. Observe only its immediate child replacement.
     new MutationObserver(()=>{if($('#inspectorBody').firstElementChild&&!$('#inspectorBody').firstElementChild.dataset.sheet&&!$('#inspectorBody').firstElementChild.hasAttribute('data-structural-editor'))prepareInspector();else if($('#inspectorBody [data-structural-editor]')?.firstElementChild&&!$('#inspectorBody [data-structural-editor]').firstElementChild.dataset.sheet)prepareInspector();}).observe($('#inspectorBody'),{childList:true});
     $('#inspectorBack').hidden=true;
-    const sheetObserver=new MutationObserver(()=>{$('#inspectorBack').hidden=A.state.inspectorMode!=='project'||!A.state.selected;});sheetObserver.observe($('#inspectorBody'),{childList:true});
+    const sheetObserver=new MutationObserver(()=>{$('#inspectorBack').hidden=A.state.inspectorMode!=='project'||(!A.state.selected&&A.state.workspace!=='structure');$('#inspectorBack').textContent=A.state.workspace==='structure'&&!A.state.selected?'← Structure properties':'← Selected object';});sheetObserver.observe($('#inspectorBody'),{childList:true});
     const palette=dialog('commandPalette','Search commands','<input id="commandSearch" aria-label="Search commands and objects" placeholder="Search tools, workspaces, objects…" autocomplete="off"><div id="commandResults"></div><p class="studio-note">↑ ↓ to choose · Enter to run · Esc to close · Alt 1–4 switches workspace</p>');
     const commands=()=>[
+      {label:'Project settings · front side, site, labels & location',run:openProjectSettings},
       ...[['architecture','Architecture'],['structure','Structure'],['services','Services'],['3d','3D view']].map(([id,label])=>({label:'Workspace: '+label,run:()=>id==='3d'?A.setView('3d'):A.setWorkspace(id)})),
       ...[['room','Draw room'],['wall','Draw wall'],['roof','Draw roof'],['dimension','Draw dimension'],['select','Select'],['pan','Pan']].map(([id,label])=>({label,run:()=>{A.setWorkspace('architecture');A.setTool(id);}})),
-      {label:'Open object library',run:()=>showLibrary('library')},{label:'Find objects on this floor',run:()=>showLibrary('objects')},{label:'Properties',run:openProperties},{label:'Export & print',run:()=>exportDialog.open()},{label:'Save project',run:A.saveProject},{label:'Projects & recovery',run:A.openLibrary},{label:'Add floor',run:A.openFloorModal},{label:'Fit drawing',run:A.fitPlan},{label:'Help & shortcuts',run:()=>$('#helpBtn').click()},
+      {label:'Open object library',run:()=>showLibrary('library')},{label:'Find objects on this floor',run:()=>showLibrary('objects')},{label:'Properties',run:openProperties},{label:'Export & print',run:()=>exportDialog.open()},{label:'Save project',run:A.saveProject},{label:'Projects & recovery',run:A.openLibrary},{label:'Add floor',run:A.openFloorModal},{label:'Manage floors · delete, order & elevation',run:A.openFloorModal},{label:'Fit drawing',run:A.fitPlan},{label:'Help & shortcuts',run:()=>$('#helpBtn').click()},
       ...A.allEntities().map(o=>({label:'Object: '+(o.name||o.tag||o.type),run:()=>{A.select(o.id);showPanel('inspector');}}))
     ];
     let matches=[],choice=0;
@@ -197,5 +213,5 @@
       $('#objectGrid').querySelectorAll('.cat-group-head').forEach(el=>{el.hidden=![...el.nextElementSibling.children].some(card=>!card.hidden);});
     }
   }
-  Object.assign(A,{initStudioUI});
+  Object.assign(A,{initStudioUI,openProjectSettings});
 })();

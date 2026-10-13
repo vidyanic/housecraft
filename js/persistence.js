@@ -10,6 +10,7 @@
   'use strict';
   const A = window.Atelier;
   function S() { return A.state; }
+  let savedSnapshot=JSON.stringify(S().project);
 
   // ── Toast / hint notifications ───────────────────────────────
   function showToast(msg) {
@@ -24,12 +25,19 @@
 
   // ── Save / Load ──────────────────────────────────────────────
   function saveProject() {
+    if(A.readOnly)return;
     const s=S();
+    if(s.pointerBackup){s.saveDeferred=true;return;}
+    A.updateModelRelationships?.();
+    A.settleCheckpoint();
+    clearTimeout(s.saveTimer);s.saveTimer=null;
     s.project.name=s.project.name.trim()||'Untitled project';
     s.project.projectId ||= A.uid();
     try {
-      localStorage.setItem(A.storagePrefix+'project',JSON.stringify(s.project));
+      const snapshot=JSON.stringify(s.project);
+      localStorage.setItem(A.storagePrefix+'project',snapshot);
       A.recordProject?.();
+      savedSnapshot=snapshot;
       A.$('#saveState').textContent='Saved locally';showToast('Project saved in this browser');
       A.$('#saveState').style.setProperty('--dot','#29a978');
     } catch {
@@ -38,12 +46,34 @@
   }
 
   function queueSave() {
+    if(A.readOnly)return;
     const s=S();
+    if(s.pointerBackup){s.saveDeferred=true;return;}
+    A.updateModelRelationships?.();
+    A.settleCheckpoint();
     clearTimeout(s.saveTimer);
+    s.saveTimer=null;
+    if(JSON.stringify(s.project)===savedSnapshot){
+      A.$('#saveState').textContent='Saved locally';
+      A.$('#saveState').style.setProperty('--dot','#29a978');
+      return;
+    }
     A.$('#saveState').textContent='Unsaved changes';
+    A.requestDraw?.();
     A.$('#saveState').style.setProperty('--dot','#ca7a3b');
-    s.saveTimer=setTimeout(saveProject,650);
+    s.saveTimer=setTimeout(()=>{
+      s.saveTimer=null;
+      if(JSON.stringify(s.project)!==savedSnapshot)saveProject();
+    },650);
   }
+
+  function flushSave() {
+    if(A.readOnly)return;
+    if(S().pointerBackup)A.cancelInteraction?.();
+    clearTimeout(S().saveTimer);S().saveTimer=null;
+    if(JSON.stringify(S().project)!==savedSnapshot)saveProject();
+  }
+  function resumeSave(){S().saveDeferred=false;queueSave();}
 
   // ── Export / Import ──────────────────────────────────────────
   function exportProject() {
@@ -78,7 +108,7 @@
 
   Object.assign(A, {
     showToast, showHint,
-    saveProject, queueSave,
+    saveProject, queueSave, flushSave, resumeSave,
     exportProject, importProject, loadSampleProject
   });
 })();

@@ -1,0 +1,246 @@
+[
+  {
+    "name": "Click and jitter preserve model and redo",
+    "pass": true
+  },
+  {
+    "name": "Aspect resize keeps fixed anchor",
+    "pass": true
+  },
+  {
+    "name": "Selection removal keeps primary selected",
+    "pass": true
+  },
+  {
+    "name": "Scale rejects nonfinite input",
+    "pass": true
+  },
+  {
+    "name": "Hosted opening drag remains on its wall and within the ends",
+    "pass": true
+  },
+  {
+    "name": "Hosted width handle preserves anchor and rejects unsupported transforms",
+    "pass": true
+  },
+  {
+    "name": "Detach survives movement and save/load; reattach and undo are explicit",
+    "pass": true
+  },
+  {
+    "name": "Repainting every workspace leaves pending model data untouched",
+    "pass": true
+  },
+  {
+    "name": "Structural annotations do not become saved member properties",
+    "pass": true
+  },
+  {
+    "name": "Touch drag creates one undo and cancel restores it",
+    "pass": true
+  },
+  {
+    "name": "Second finger cancels object drag before pinch",
+    "pass": true
+  },
+  {
+    "name": "Locked item cannot move or delete",
+    "pass": true
+  },
+  {
+    "name": "Small service fixture retains valid size",
+    "pass": true
+  },
+  {
+    "name": "Rotated resize fixes every opposite corner",
+    "pass": true
+  },
+  {
+    "name": "Visible padded resize handle has no initial size jump",
+    "pass": true
+  },
+  {
+    "name": "Side handle changes only width",
+    "pass": true
+  },
+  {
+    "name": "Pending save does not persist a drag preview",
+    "pass": true
+  },
+  {
+    "name": "Service hit testing ignores non-service occluders",
+    "pass": true
+  },
+  {
+    "name": "Hidden roof is excluded from marquee selection",
+    "pass": true
+  },
+  {
+    "name": "Repeated keyboard nudge creates one undo",
+    "pass": true
+  },
+  {
+    "name": "Structural grid selects, moves, deletes and undoes",
+    "pass": true
+  },
+  {
+    "name": "Structural column drag preserves connected beam joint",
+    "pass": true
+  },
+  {
+    "name": "Route draft preview and local undo leave project history untouched",
+    "pass": true
+  },
+  {
+    "name": "Route vertex edits preserve untouched vertices and elevation",
+    "pass": true
+  },
+  {
+    "name": "Uniform route scale includes vertical run",
+    "pass": true
+  },
+  {
+    "name": "Route footprint scale preserves elevations and diameter through inspector",
+    "pass": true
+  },
+  {
+    "name": "Group scaling uses one common pivot and undo",
+    "pass": true
+  },
+  {
+    "name": "Group rotation commands share a pivot in both directions",
+    "pass": true
+  },
+  {
+    "name": "Group alignment uses rotated visible bounds and one undo",
+    "pass": true
+  },
+  {
+    "name": "Group distribution keeps outer edges and makes equal gaps",
+    "pass": true
+  },
+  {
+    "name": "Group stacking preserves internal order and no-op history",
+    "pass": true
+  },
+  {
+    "name": "Dimension move updates associative offsets",
+    "pass": true
+  },
+  {
+    "name": "Workspace switch cancels preview",
+    "pass": true
+  },
+  {
+    "name": "Shift drag locks the dominant axis",
+    "pass": true
+  },
+  {
+    "name": "Shift axis stays locked when pointer crosses dominance and releases cleanly",
+    "pass": true
+  },
+  {
+    "name": "Touch movement direction is view state and Y movement cancels or commits once",
+    "pass": true
+  },
+  {
+    "name": "Rotated object-axis movement projects without drift and preserves group spacing",
+    "pass": true
+  },
+  {
+    "name": "Constrained perpendicular drag is a no-op and touch command reveals canvas",
+    "pass": true
+  },
+  {
+    "name": "Exact signed movement applies once, validates input and preserves route elevation",
+    "pass": true
+  },
+  {
+    "name": "Wheel cannot change coordinates during object drag",
+    "pass": true
+  },
+  {
+    "name": "Pinch move bursts paint once per frame and preserve the last release state",
+    "pass": true
+  },
+  {
+    "name": "Structural grids count once",
+    "pass": true
+  },
+  {
+    "name": "Drag paints do not rewrite shell controls",
+    "pass": true
+  },
+  {
+    "name": "Touch multi-select adds and removes without edits then returns to move",
+    "pass": true
+  },
+  {
+    "name": "Overlap cycle reaches all visible targets without model edits",
+    "pass": true
+  },
+  {
+    "name": "Rotated service hit tests reject empty bounding-box corners",
+    "pass": true
+  },
+  {
+    "name": "Space pan leaves geometry and history unchanged",
+    "pass": true
+  },
+  {
+    "name": "Touch center of small fixture remains a move target",
+    "pass": true
+  },
+  {
+    "name": "Copied dimension detaches anchors to original entities",
+    "pass": true
+  },
+  {
+    "name": "3D committed move creates one undo",
+    "pass": true
+  },
+  {
+    "name": "3D click and cancellation preserve history and redo",
+    "pass": true
+  },
+  {
+    "name": "3D touch rotate commits once and restores on undo",
+    "pass": true
+  },
+  {
+    "name": "3D touch scale commits once and restores on undo",
+    "pass": true
+  },
+  {
+    "name": "3D rotate cancellation and return to origin preserve redo",
+    "pass": true
+  },
+  {
+    "name": "3D scale cancellation and return to origin preserve redo",
+    "pass": true
+  },
+  {
+    "name": "Second 3D touch cancels the transform before taking ownership",
+    "pass": true
+  },
+  {
+    "name": "3D transform command reveals the canvas above mobile property sheets",
+    "pass": true
+  },
+  {
+    "name": "Selection and jitter do not serialize the project for undo",
+    "pass": true
+  },
+  {
+    "name": "Pointer bursts update relationships once per preview frame",
+    "pass": true
+  },
+  {
+    "name": "3D movement defers snapshots and shares one dependency update per frame",
+    "pass": true
+  },
+  {
+    "name": "No uncaught application errors during interaction checks",
+    "pass": true
+  }
+]

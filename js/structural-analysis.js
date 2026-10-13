@@ -52,7 +52,7 @@
     if(cached?.signature===signature)return cached.report;
     const report=computeStructure(floor,project);
     const finalSignature=analysisSignature(floor,project);
-    analysisCache.set(floor,{signature:finalSignature,report});
+    analysisCache.set(floor,{signature:finalSignature,report,annotations:new Map([...report.columnDetails,...report.beamDetails].map(o=>[o.id,o]))});
     return report;
   }
   function computeStructure(floor = A.floor(), project = A.state.project) {
@@ -144,9 +144,6 @@
         advice = 'Below minimum structural size (200mm / 8") for framed construction.';
       }
 
-      col.status = colStatus;
-      col.utilization = utilization;
-      col.colorCode = colStatus === 'fail' ? '#c93b2b' : colStatus === 'warn' ? '#d97724' : '#247d4e';
 
       const neighbors = colCenters
         .filter(o => o.id !== col.id)
@@ -202,9 +199,6 @@
         advice = `Span (${spanM.toFixed(1)}m) > 6.0m: Consider deeper beam (≥45cm) or intermediate column.`;
       }
 
-      beam.status = beamStatus;
-      beam.actualLd = actualLd;
-      beam.colorCode = (spanM > 5.5 || beamStatus === 'fail') ? '#be2c20' : (actualLd > maxLd || spanM > 4.5 || beamStatus === 'warn') ? '#c87a1e' : '#2e6b52';
 
       report.beamDetails.push({
         id: beam.id,
@@ -799,6 +793,7 @@
 
   // ── Expose on global namespace ───────────────────────────────
   Object.assign(A, {
+    structuralAnnotation:(id,f=A.floor())=>analysisCache.get(f)?.annotations.get(id),
     analyzeStructure,
     classifyBeamHierarchy,
     analyzePillarOptimization,

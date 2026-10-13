@@ -1,0 +1,126 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32"
+  },
+  "scope": "Node CPU microbenchmarks; excludes canvas, DOM, GPU and browser scheduling. Synthetic fixtures, not FPS measurements.",
+  "findings": {
+    "aspectResize": {
+      "expectedFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "actualFixedCorner": {
+        "x": 0,
+        "y": -12.5
+      },
+      "size": {
+        "w": 150,
+        "d": 75
+      }
+    },
+    "snappedResize": {
+      "expectedFixedCorner": {
+        "x": 0,
+        "y": 0
+      },
+      "actualFixedCorner": {
+        "x": 0.20000000000000284,
+        "y": 0.1999999999999993
+      },
+      "size": {
+        "w": 100,
+        "d": 50
+      }
+    },
+    "smallFixtureResize": {
+      "w": 20,
+      "d": 20
+    },
+    "invalidScale": {
+      "finite": false,
+      "serializedWidth": null
+    },
+    "groupDeselect": {
+      "primary": "b",
+      "selectedIds": [
+        "a"
+      ]
+    },
+    "gridLookup": {
+      "entityFound": false,
+      "inAllEntities": false
+    },
+    "copyWithoutName": {
+      "hasOwnName": true
+    },
+    "routeScale": {
+      "beforeLength": 141.4213562373095,
+      "afterLength": 223.60679774997897,
+      "expectedUniformLength": 282.842712474619,
+      "verticalDelta": 100
+    }
+  },
+  "timings": [
+    {
+      "entitiesPerCollection": 100,
+      "jsonBytes": 17111,
+      "stringify": {
+        "medianMs": 0.077,
+        "p95Ms": 0.081
+      },
+      "groupLookup": {
+        "medianMs": 0.806,
+        "p95Ms": 1.602
+      },
+      "smartGuides": {
+        "medianMs": 1.4,
+        "p95Ms": 1.911
+      },
+      "wallFaces": {
+        "medianMs": 2.427,
+        "p95Ms": 4.099
+      }
+    },
+    {
+      "entitiesPerCollection": 500,
+      "jsonBytes": 87015,
+      "stringify": {
+        "medianMs": 0.381,
+        "p95Ms": 0.733
+      },
+      "groupLookup": {
+        "medianMs": 16.421,
+        "p95Ms": 22.213
+      },
+      "smartGuides": {
+        "medianMs": 6.549,
+        "p95Ms": 8.267
+      },
+      "wallFaces": {
+        "medianMs": 44.682,
+        "p95Ms": 47.651
+      }
+    },
+    {
+      "entitiesPerCollection": 1000,
+      "jsonBytes": 174895,
+      "stringify": {
+        "medianMs": 0.93,
+        "p95Ms": 1.049
+      },
+      "groupLookup": {
+        "medianMs": 62.161,
+        "p95Ms": 83.086
+      },
+      "smartGuides": {
+        "medianMs": 12.992,
+        "p95Ms": 13.647
+      },
+      "wallFaces": {
+        "medianMs": 176.135,
+        "p95Ms": 180.449
+      }
+    }
+  ]
+}

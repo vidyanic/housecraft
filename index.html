@@ -376,7 +376,7 @@
               <use href="#i-close" />
             </svg></button>
         </div>
-        <div class="planning-tools" id="planningTools"><details><summary>Plan tools & drawing export</summary><button class="button" id="traceRoomsBtn">Trace closed rooms from walls</button><label for="floorViewMode">3D floor display</label><select id="floorViewMode"><option value="active">Active floor</option><option value="all">Stack all floors at their elevations</option></select><label for="drawingScale">Drawing scale</label><select id="drawingScale"><option value="50">1:50</option><option value="100" selected>1:100</option><option value="200">1:200</option></select><div class="quick-actions"><button id="exportSvgBtn">Export SVG</button><button id="exportPdfBtn">Export PDF</button><button id="printPlanBtn">Print drawing</button></div><p>Print at 100% size to preserve the selected scale. Traced rooms follow wall boundaries.</p></details></div>
+<div class="planning-tools" id="planningTools"><details><summary>Plan tools & drawing export</summary><button class="button" id="traceRoomsBtn">Trace closed rooms from walls</button><button id="floorViewMode" class="icon-button" aria-label="Show all floors in 3D" aria-pressed="false" title="Show all floors in 3D">▱</button><label for="drawingScale">Drawing scale</label><select id="drawingScale"><option value="50">1:50</option><option value="100" selected>1:100</option><option value="200">1:200</option></select><div class="quick-actions"><button id="exportSvgBtn">Export SVG</button><button id="exportPdfBtn">Export PDF</button><button id="printPlanBtn">Print drawing</button></div><p>Print at 100% size to preserve the selected scale. Traced rooms follow wall boundaries.</p></details></div>
         <div class="inspector-body" id="inspectorBody"></div>
       </aside>
     </section>
@@ -440,21 +440,25 @@
   <div class="modal-backdrop" id="floorModal">
     <div class="modal">
       <div class="modal-header">
-        <h2>Building Levels</h2>
+        <h2>Floors &amp; 3D stack</h2>
         <button class="panel-close-btn" id="closeFloorModalBtn" title="Close"><svg class="icon">
             <use href="#i-close" />
           </svg></button>
       </div>
+      <p>Highest floor first. Move a floor up or down to exchange its level with its neighbour. Elevations are measured from ground zero.</p>
       <div class="floor-list-modal" id="floorListModal"></div>
-      <label><input type="checkbox" id="copyFloorContents"> Copy rooms, walls, and objects from current floor</label>
+      <p id="floorManagerNotice" role="status" aria-live="polite"></p>
       <div class="modal-divider"></div>
       <h3 style="margin:12px 0 6px;font-size:14px;font-weight:600">Add a new floor</h3>
-      <p style="margin:0 0 14px">Set elevation relative to ground level.</p>
+      <div class="field"><label for="newFloorBelow">Above floor</label><select id="newFloorBelow"></select></div>
+      <div class="field"><label for="newFloorGap">Floor-to-floor height <span class="unit-label">cm</span></label><input id="newFloorGap" type="text" /></div>
+      <p id="floorStackPreview" role="status" aria-live="polite"></p>
       <div class="field"><label>Floor name</label><input id="newFloorName" type="text" value="First floor" /></div>
-      <div class="field"><label>Elevation</label>
+      <div class="field"><label for="newFloorElevation">Resulting elevation (editable for basements / split levels)</label>
         <div class="input-unit"><input id="newFloorElevation" type="text" value="300" /><span
             id="newFloorElevationUnit">cm</span></div>
       </div>
+      <label><input type="checkbox" id="copyFloorContents"> Copy all contents from current floor, including structure and services</label>
       <div class="modal-actions"><button class="button" id="cancelFloor">Cancel</button><button class="button primary"
           id="confirmFloor">Add floor</button></div>
     </div>
@@ -626,6 +630,7 @@
   <script src="js/constants.js"></script>
   <script src="js/furniture-catalog.js"></script>
   <script src="js/services.js"></script>
+  <script src="js/stairs.js"></script>
   <script src="js/structural-model.js"></script>
   <script src="js/frame-solver.js"></script>
   <script src="js/seismic-analysis.js"></script>
@@ -647,8 +652,11 @@
   <script src="js/accessibility.js"></script>
   <script src="js/structural-proposals.js"></script>
   <script src="js/structural-workspace.js"></script>
+  <script src="js/plan-settings.js"></script>
+  <script src="js/stair-connections.js"></script>
   <script src="js/studio-ui.js"></script>
   <script src="js/canvas-space.js"></script>
+  <script src="js/read-only.js"></script>
   <script src="js/app.js"></script>
 
   <!-- 3D renderer (Three.js) -->

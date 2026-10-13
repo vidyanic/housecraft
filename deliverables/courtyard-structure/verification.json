@@ -1,0 +1,350 @@
+{
+  "date": "2026-10-12",
+  "checks": [
+    "Original input remains byte-for-byte unchanged",
+    "No legacy column or beam IDs carried into either proposal",
+    "18 vertically aligned columns on each occupied storey",
+    "Frame and wall reservations symmetric about both plan axes",
+    "All beam joints resolve; cantilever free ends remain free",
+    "240 cm footing reservations leave at least 30.48 cm to assumed plot boundary",
+    "Roof shade outer edges stay within assumed plot",
+    "Stair rise meets each storey and rotated flight rectangle clears beams/columns",
+    "Future frame has no missing beam or vertically discontinuous column joints",
+    "Hosted openings do not intersect columns or reserved RC walls in plan",
+    "Future gravity bookkeeping balances (approximate tributary model only)"
+  ],
+  "site": {
+    "x": 110.4,
+    "y": 132.76,
+    "w": 1981.2,
+    "h": 1066.8
+  },
+  "xs": [
+    260.88,
+    515,
+    914.4,
+    1287.6,
+    1687,
+    1941.12
+  ],
+  "ys": [
+    283.24,
+    666.16,
+    1049.08
+  ],
+  "baysX": [
+    254.12,
+    399.4,
+    373.2,
+    399.4,
+    254.12
+  ],
+  "baysY": [
+    382.92,
+    382.92
+  ],
+  "columnsPerStorey": 18,
+  "primaryBeamsPerStorey": 23,
+  "cantileverStubsPerStorey": 18,
+  "rcWallReservationsPerStorey": 6,
+  "gravityBalanceError": 1.5916157281026244e-12,
+  "gravityCaveat": "Tributary bookkeeping, not plate/frame design. Assumed repeated future masonry layout + 1 kPa partition reserve in occupied slab superimposed dead loads; wall stiffness/foundation interaction uncomputed. Masonry overlap with RC walls is conservatively retained. Chajja self-weight and detailed stair/landing loads not included: reaction is not a complete design load.",
+  "reactions": [
+    {
+      "tag": "A1",
+      "serviceKN": 197.13,
+      "areaAt150KpaWith10PercentAllowance": 1.45,
+      "squareSideCm": 120.23
+    },
+    {
+      "tag": "B1",
+      "serviceKN": 387.76,
+      "areaAt150KpaWith10PercentAllowance": 2.84,
+      "squareSideCm": 168.63
+    },
+    {
+      "tag": "C1",
+      "serviceKN": 563.93,
+      "areaAt150KpaWith10PercentAllowance": 4.14,
+      "squareSideCm": 203.36
+    },
+    {
+      "tag": "D1",
+      "serviceKN": 568.76,
+      "areaAt150KpaWith10PercentAllowance": 4.17,
+      "squareSideCm": 204.23
+    },
+    {
+      "tag": "E1",
+      "serviceKN": 457.18,
+      "areaAt150KpaWith10PercentAllowance": 3.35,
+      "squareSideCm": 183.1
+    },
+    {
+      "tag": "F1",
+      "serviceKN": 253.49,
+      "areaAt150KpaWith10PercentAllowance": 1.86,
+      "squareSideCm": 136.34
+    },
+    {
+      "tag": "A2",
+      "serviceKN": 256.84,
+      "areaAt150KpaWith10PercentAllowance": 1.88,
+      "squareSideCm": 137.24
+    },
+    {
+      "tag": "B2",
+      "serviceKN": 572.26,
+      "areaAt150KpaWith10PercentAllowance": 4.2,
+      "squareSideCm": 204.85
+    },
+    {
+      "tag": "C2",
+      "serviceKN": 674.39,
+      "areaAt150KpaWith10PercentAllowance": 4.95,
+      "squareSideCm": 222.38
+    },
+    {
+      "tag": "D2",
+      "serviceKN": 620.29,
+      "areaAt150KpaWith10PercentAllowance": 4.55,
+      "squareSideCm": 213.28
+    },
+    {
+      "tag": "E2",
+      "serviceKN": 425.47,
+      "areaAt150KpaWith10PercentAllowance": 3.12,
+      "squareSideCm": 176.64
+    },
+    {
+      "tag": "F2",
+      "serviceKN": 248.12,
+      "areaAt150KpaWith10PercentAllowance": 1.82,
+      "squareSideCm": 134.89
+    },
+    {
+      "tag": "A3",
+      "serviceKN": 290.61,
+      "areaAt150KpaWith10PercentAllowance": 2.13,
+      "squareSideCm": 145.98
+    },
+    {
+      "tag": "B3",
+      "serviceKN": 430.69,
+      "areaAt150KpaWith10PercentAllowance": 3.16,
+      "squareSideCm": 177.72
+    },
+    {
+      "tag": "C3",
+      "serviceKN": 563.93,
+      "areaAt150KpaWith10PercentAllowance": 4.14,
+      "squareSideCm": 203.36
+    },
+    {
+      "tag": "D3",
+      "serviceKN": 621.49,
+      "areaAt150KpaWith10PercentAllowance": 4.56,
+      "squareSideCm": 213.49
+    },
+    {
+      "tag": "E3",
+      "serviceKN": 438.7,
+      "areaAt150KpaWith10PercentAllowance": 3.22,
+      "squareSideCm": 179.36
+    },
+    {
+      "tag": "F3",
+      "serviceKN": 207.11,
+      "areaAt150KpaWith10PercentAllowance": 1.52,
+      "squareSideCm": 123.24
+    }
+  ],
+  "originalRooms": [
+    {
+      "name": "Shared Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Guest Room",
+      "widthFt": 12,
+      "depthFt": 15,
+      "areaSqFt": 180
+    },
+    {
+      "name": "kitchen",
+      "widthFt": 8.5,
+      "depthFt": 13,
+      "areaSqFt": 110.5
+    },
+    {
+      "name": "Living Room + Entrance",
+      "widthFt": 12,
+      "depthFt": 16.67,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Dinning +Pooja",
+      "widthFt": 12,
+      "depthFt": 10.83,
+      "areaSqFt": 130
+    },
+    {
+      "name": "Open Stairs",
+      "widthFt": 11.75,
+      "depthFt": 8.25,
+      "areaSqFt": 96.94
+    },
+    {
+      "name": "Children Room",
+      "widthFt": 12.5,
+      "depthFt": 16,
+      "areaSqFt": 200
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 10,
+      "depthFt": 16,
+      "areaSqFt": 160
+    },
+    {
+      "name": "Master Toilet",
+      "widthFt": 9,
+      "depthFt": 6.5,
+      "areaSqFt": 58.5
+    },
+    {
+      "name": "Open terrace",
+      "widthFt": 7.67,
+      "depthFt": 8,
+      "areaSqFt": 61.33
+    },
+    {
+      "name": "Master Bedroom",
+      "widthFt": 15,
+      "depthFt": 14,
+      "areaSqFt": 210
+    },
+    {
+      "name": "Private Living Room",
+      "widthFt": 12,
+      "depthFt": 16.75,
+      "areaSqFt": 201
+    },
+    {
+      "name": "Balcony",
+      "widthFt": 12.08,
+      "depthFt": 5.33,
+      "areaSqFt": 64.44
+    }
+  ],
+  "proposedRooms": [
+    {
+      "name": "Covered terrace",
+      "widthFt": 9.65,
+      "depthFt": 13.88,
+      "areaSqFt": 133.89
+    },
+    {
+      "name": "Children Room",
+      "widthFt": 12.45,
+      "depthFt": 13.88,
+      "areaSqFt": 172.71
+    },
+    {
+      "name": "Guest Room",
+      "widthFt": 11.59,
+      "depthFt": 11.91,
+      "areaSqFt": 137.98
+    },
+    {
+      "name": "Balcony",
+      "widthFt": 12.45,
+      "depthFt": 4.66,
+      "areaSqFt": 57.99
+    },
+    {
+      "name": "Dining + Pooja",
+      "widthFt": 12.45,
+      "depthFt": 8.56,
+      "areaSqFt": 106.56
+    },
+    {
+      "name": "Kitchen",
+      "widthFt": 9.65,
+      "depthFt": 13.88,
+      "areaSqFt": 133.89
+    },
+    {
+      "name": "Covered terrace / utility",
+      "widthFt": 9.65,
+      "depthFt": 6.53,
+      "areaSqFt": 63
+    },
+    {
+      "name": "Master Toilet",
+      "widthFt": 9.65,
+      "depthFt": 6.69,
+      "areaSqFt": 64.56
+    },
+    {
+      "name": "Bedroom access passage",
+      "widthFt": 12.45,
+      "depthFt": 3.31,
+      "areaSqFt": 41.25
+    },
+    {
+      "name": "Master Bedroom",
+      "widthFt": 12.45,
+      "depthFt": 9.48,
+      "areaSqFt": 117.99
+    },
+    {
+      "name": "Private Living Room",
+      "widthFt": 11.59,
+      "depthFt": 11.91,
+      "areaSqFt": 137.98
+    },
+    {
+      "name": "Living + Entrance",
+      "widthFt": 12.45,
+      "depthFt": 13.88,
+      "areaSqFt": 128.15
+    },
+    {
+      "name": "Shared Toilet",
+      "widthFt": 6.14,
+      "depthFt": 5.91,
+      "areaSqFt": 36.23
+    },
+    {
+      "name": "Open Stairs",
+      "widthFt": 11.02,
+      "depthFt": 13.88,
+      "areaSqFt": 152.96
+    }
+  ],
+  "issues": [
+    {
+      "message": "Structural wall shell stiffness is not represented by this frame solver. A wall-capable solver is required."
+    },
+    {
+      "message": "Structural wall shell stiffness is not represented by this frame solver. A wall-capable solver is required."
+    },
+    {
+      "message": "Structural wall shell stiffness is not represented by this frame solver. A wall-capable solver is required."
+    }
+  ],
+  "notes": [
+    "Concept geometry only; no member, reinforcement, footing or earthquake safety certification.",
+    "Design brief includes one future occupied second floor plus its roof; future loads and foundations require engineering design now.",
+    "Original structure discarded at owner request. Source architecture retained separately; coordinated alternative changes rooms.",
+    "Assumed plot origin is centred on source built-up envelope; boundary survey and setbacks must be confirmed.",
+    "Column and beam sizes are coordination envelopes, not approved sizes. Reinforcement intentionally not specified.",
+    "240 cm footing rectangles are spatial reservations only, not designed foundations.",
+    "60 cm loaded perimeter slab extensions and additional 76.2 cm roof shade where space permits: do not treat as foundation counterweights.",
+    "No RC wall, column or beam may be removed for future partition changes.",
+    "Stair landing, guards and headroom require architectural/structural detailing; the 3D stair is a space reservation only."
+  ]
+}

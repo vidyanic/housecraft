@@ -83,6 +83,31 @@
 
   function unitLabel() { return getUnit() === 'ft' ? 'ft + in' : getUnit(); }
 
+  function siteSideDefinition(site,key){const defaults={north:{direction:'NORTH',status:'open',showMeasurement:true},west:{direction:'WEST',status:'open',showMeasurement:true},south:{direction:'SOUTH',status:'closed',showMeasurement:false},east:{direction:'EAST',status:'closed',showMeasurement:false}};return {...defaults[key],status:site?.[key]||defaults[key].status,showMeasurement:Number.isFinite(site?.sides?.[key]?.measurement)?true:defaults[key].showMeasurement,...site?.sides?.[key]};}
+  function siteSideText(site,key){const side=siteSideDefinition(site,key),length=side.measurement??(key==='north'||key==='south'?site.width:site.depth);return [site.frontSide===key?'FRONT':'',side.direction,side.showMeasurement?formatLength(length):'',side.status==='road'?'ROAD':side.status==='open'?'OPEN':side.status==='closed'?'CLOSED':'',side.note].filter(Boolean).join(' · ');}
+  function migrateSiteSettings(p){
+    const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
+    if(p.site!=null&&!object(p.site))return p;
+    p.site||={};const site=p.site;
+    site.frontSide??=p.frontSide??'';
+    if(typeof site.frontSide==='string')site.frontSide=site.frontSide.toLowerCase();
+    site.sides??=site.sideLabels??p.sideLabels??{};
+    if(!object(site.sides))return p;
+    for(const key of ['north','west','south','east']){
+      let side=site.sides[key];
+      if(side==null&&object(site[key]))side=site[key];
+      if(side==null&&typeof site[key]==='string'&&!['open','closed','road','none'].includes(site[key]))side=site[key];
+      if(typeof side==='string')side={direction:side};
+      if(object(side)){side={...side};if(side.direction==null&&side.label!=null)side.direction=side.label;if(side.measurement==null&&side.length!=null)side.measurement=side.length;site.sides[key]=side;site[key]=side.status??(['open','closed','road','none'].includes(site[key])?site[key]:'none');}
+    }
+    return p;
+  }
+  function siteAnnotationBounds(f){
+    const geometry=[...(f.rooms||[]),...(f.walls||[])];
+    if(geometry.length)return Atelier.planBounds({...f,rooms:f.rooms||[],walls:f.walls||[],items:[],columns:[],beams:[],slabs:[],loads:[],structuralWalls:[],dimensions:[],grids:[]});
+    const p=Atelier.state.project;return {minX:p.builtUp?.originX||0,minY:p.builtUp?.originY||0,maxX:(p.builtUp?.originX||0)+p.site.width,maxY:(p.builtUp?.originY||0)+p.site.depth};
+  }
+
   function areaUnitLabel() {
     const u = getUnit();
     return u === 'm' ? 'm²' : u === 'ft' ? 'ft²' : u === 'in' ? 'in²' : 'cm²';
@@ -107,9 +132,10 @@
     window.addEventListener('error',event=>window.Atelier.runtimeErrors.push(event.error?.stack||event.message));
   }
   Object.assign(window.Atelier, {
+    readOnly: typeof location!=='undefined' && new URLSearchParams(location.search).get('readonly') === '1',
     storagePrefix: typeof location!=='undefined' && new URLSearchParams(location.search).has('test') ? 'atelier-plan-test-' : 'atelier-plan-',
     $, $$, icon, uid, deep, escapeHtml, shade,
     gridStep, snap, displayValue, toCm, unitLabel,
-    areaUnitLabel, formatArea, formatLength, formatFeetInches
+    areaUnitLabel, formatArea, formatLength, formatFeetInches, siteSideDefinition, siteSideText, migrateSiteSettings, siteAnnotationBounds
   });
 })();

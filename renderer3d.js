@@ -1159,6 +1159,8 @@
       box(g, w, .06, d, 0, .03, 0, pbr({ material: 'Stone', color: '#d0d4d0' }));
       box(g, .025, h, d, -w / 2, h / 2, 0, mat); box(g, w, h, .025, 0, h / 2, -d / 2, mat);
       cylinder(g, .14, .14, .025, 24, w * .25, h * .82, -d * .34, pbr({ material: 'Metal', color: '#777f7e' })).rotation.x = Math.PI / 2;
+    } else if (t === 'three-side-stairs') {
+      try{const layout=window.Atelier.threeSideStairLayout(o);for(const p of layout.parts){if(p.kind==='entrance'&&o.skipStairEntrance)continue;const height=.085;box(g,cm(p.w),height,cm(p.d),cm(p.x),cm(p.z)-height/2,cm(p.y),p.kind==='landing'?pbr({material:o.material||'Concrete',color:'#dac9a7'}):mat);}for(const p of layout.risers)box(g,cm(p.w),cm(p.height),cm(p.d),cm(p.x),cm(p.z-p.height/2),cm(p.y),mat);for(const rail of layout.rails)stairRailing(g,cm(rail.a.x),cm(rail.z1),cm(rail.a.y),cm(rail.b.x),cm(rail.z2),cm(rail.b.y));}catch(error){box(g,w,.03,d,0,.015,0,pbr({material:'Concrete',color:'#bd5544'}));}
     } else if (t === 'stairs') {
       straightStaircase(g, o, w, d, h, mat);
     } else if (t === 'l-stairs' || t === 'u-stairs') {
@@ -1281,6 +1283,11 @@
   }
 
   function roomFloor(parent, room) {
+    if(room.stairOpenings?.length){
+      const poly=room.polygon||[{x:room.x,y:room.y},{x:room.x+room.w,y:room.y},{x:room.x+room.w,y:room.y+room.d},{x:room.x,y:room.y+room.d}],triangles=THREE.ShapeUtils.triangulateShape(poly.map(p=>new THREE.Vector2(p.x,p.y)),[]);let pieces=triangles.map(ids=>ids.map(i=>poly[i]));
+      for(const hole of room.stairOpenings)pieces=pieces.flatMap(p=>window.Atelier.subtractStairOpening(p,hole));
+      for(const polygon of pieces)roomFloor(parent,{...room,polygon,stairOpenings:null});return;
+    }
     const finish = (room.floorMaterial || (/kitchen|bath/i.test(room.name) ? 'tile' : /terrace|garage/i.test(room.name) ? 'stone' : 'wood')).toLowerCase();
     // Texture repeat is room-specific.  Never mutate the shared texture in
     // textureCache or one room's finish scale will leak into every other room
@@ -1347,6 +1354,7 @@
     if(col.shape==='circle'){const mesh=cylinder(group,w/2,w/2,h,24,cx,h/2,cz,mat);mesh.scale.z=d/w;}else box(group, w, h, d, cx, h / 2, cz, mat);
     const trimMat = pbr({ material: 'concrete', color: '#8d928e' });
     box(group, w + 0.03, 0.06, d + 0.03, cx, 0.03, cz, trimMat);
+    if(col.rotation){group.children.forEach(node=>{node.position.x-=cx;node.position.z-=cz;});group.position.set(cx,0,cz);group.rotation.y=-col.rotation*Math.PI/180;}
     group.userData.entityId = col.id;
     return group;
   }
@@ -1386,8 +1394,11 @@
     const helper = new THREE.BoxHelper(target, 0x29a978); helper.material.depthTest = false; helper.material.transparent = true; helper.material.opacity = .9; helper.renderOrder = 999; design.add(helper);selectionHelper=helper;
   }
 
+  let sceneContext='',objectDrag=null;
   function rebuild() {
     rebuildQueued = false;
+    // Scaling previews the existing mesh; rebuild its geometry only at commit.
+    if(objectDrag?.mode==='scale')return;
     const bridge = window.atelierBridge;
     if (!bridge) return;
     const projectData = bridge.project, floorData = bridge.floor();
@@ -1403,16 +1414,18 @@
         design.add(group);record={group,signature};sceneRecords.set(key,record);geometryChanged=true;renderStats.geometryBuilds++;
       }
       record.group.position.y=cm(elevation);
-      if(transformOnly){const node=record.group.children[0];if(node){const x=cm(data.x+data.w/2),z=cm(data.y+data.d/2),y=cm(data.elevation||0),rotation=-(data.rotation||0)*Math.PI/180;if(node.position.x!==x||node.position.y!==y||node.position.z!==z||node.rotation.y!==rotation){renderStats.transformUpdates++;geometryChanged=true;}node.position.set(x,y,z);node.rotation.y=rotation;}}
+      if(transformOnly){const node=record.group.children[0];if(node){const x=cm(data.x+data.w/2),z=cm(data.y+data.d/2),y=cm(data.elevation||0),rotation=-(data.rotation||0)*Math.PI/180;if(node.position.x!==x||node.position.y!==y||node.position.z!==z||node.rotation.y!==rotation||node.scale.x!==1){renderStats.transformUpdates++;geometryChanged=true;}node.position.set(x,y,z);node.rotation.y=rotation;node.scale.set(1,1,1);}}
     }
     const floors=projectData.camera.allFloors?projectData.floors:[floorData];
     floors.forEach(f=>{
       const prefix=f.id+':',elevation=f.elevation||0;
-      f.rooms.forEach(room=>upsert(prefix+'room:'+room.id,room,g=>roomFloor(g,room),elevation));
+      const connections=window.Atelier.stairConnections?.(f,projectData)||[],stairOpenings=connections.map(c=>c.opening);
+      f.rooms.forEach(room=>{const data={...room,stairOpenings};upsert(prefix+'room:'+room.id,data,g=>roomFloor(g,data),elevation);});
+      for(const c of connections.filter(()=>!projectData.camera.allFloors))upsert(prefix+'stair-arrival:'+c.o.id,{platform:c.platform,mismatch:c.mismatch},g=>{const shape=new THREE.Shape();c.platform.forEach((p,i)=>i?shape.lineTo(cm(p.x),-cm(p.y)):shape.moveTo(cm(p.x),-cm(p.y)));shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:.08,bevelEnabled:false});geo.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geo,pbr({material:'Concrete',color:c.mismatch?'#bd5544':'#b8cfde'}));mesh.position.y=-.08;mesh.receiveShadow=true;g.add(mesh);},elevation);
       upsert(prefix+'walls',{walls:f.walls,openings:f.items.filter(o=>['door','window'].includes(o.shape)),mode:projectData.camera.wallMode},g=>buildWalls(g,f,projectData.camera.wallMode||'cutaway'),elevation);
       if(!projectData.framingMode)f.items.forEach(item=>{
         const hiddenRoof=(item.shape||item.type)==='roof'&&projectData.camera.roofMode==='hidden';
-        upsert(prefix+'item:'+item.id,{...item,hiddenRoof},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject(item)),elevation,true);
+        const skipStairEntrance=item.shape==='three-side-stairs'&&connections.some(c=>Math.abs(c.o.x-item.x)<.1&&Math.abs(c.o.y-item.y)<.1&&Math.abs(c.o.w-item.w)<.1&&Math.abs(c.o.d-item.d)<.1);upsert(prefix+'item:'+item.id,{...item,hiddenRoof,skipStairEntrance},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject({...item,skipStairEntrance})),elevation,true);
       });
       if(projectData.showStructure!==false){
         (f.structuralWalls||[]).forEach(wall=>upsert(prefix+'rc-wall:'+wall.id,wall,g=>buildWalls(g,{...f,walls:[wall],items:[]},projectData.camera.wallMode||'cutaway'),elevation));
@@ -1427,11 +1440,13 @@
     addSelection(floorData);
     const bounds = bridge.planBounds();
     const cx = cm((bounds.minX + bounds.maxX) / 2), cz = cm((bounds.minY + bounds.maxY) / 2);
-    if(geometryChanged&&!objectDrag){
+    const nextContext=JSON.stringify([projectData.projectId,projectData.camera.allFloors,floors.map(f=>[f.id,f.elevation])]);
+    if(geometryChanged&&!objectDrag&&nextContext!==sceneContext){
       const sceneBounds=new THREE.Box3().setFromObject(design);
       if(projectData.camera.allFloors&&!sceneBounds.isEmpty())sceneBounds.getCenter(controls.target);
       else controls.target.set(cx, cm(floorData.elevation||0)+.72, cz);
     }
+    sceneContext=nextContext;
     sun.target.position.set(cx, 0, cz); scene.add(sun.target);
     updateSun(projectData.sun);
     updateMirrorReflections();
@@ -1449,6 +1464,13 @@
     });
   }
 
+  function updateOrbitFog() {
+    if(!scene.fog)return;
+    // Keep the building visible when a narrow viewport fits a distant stack.
+    // Fog still softens the background beyond the orbit target.
+    scene.fog.near=Math.max(28,camera.position.distanceTo(controls.target)*1.3);
+    scene.fog.far=Math.max(70,scene.fog.near+42);
+  }
   function setCamera(state) {
     if (!state) return;
     const theta = (Number.isFinite(Number(state.yaw))?Number(state.yaw):-38) * Math.PI / 180;
@@ -1461,6 +1483,7 @@
       controls.target.z + Math.sin(phi) * Math.cos(theta) * distance
     );
     controls.update();
+    updateOrbitFog();
     wakeRenderLoop(3);
   }
 
@@ -1497,6 +1520,7 @@
       camera.position.copy(controls.target).add(delta);
       const project=window.atelierBridge?.project;if(project){project.camera.zoom=Math.max(.18,Math.min(1.4,11/delta.length()));window.atelierBridge.updateCameraUI?.();}
     }
+    updateOrbitFog();
     wakeRenderLoop(2);
   }
 
@@ -1510,6 +1534,8 @@
       renderer.shadowMap.needsUpdate = true;
       wakeRenderLoop(5);
     } else {
+      if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;}
+      moveMode=false;transformMode='move';clearManipulationHelper();if(window.Atelier){window.Atelier.state.move3DMode=false;window.Atelier.state.transform3DMode='orbit';}controls.enabled=!walk.active;
       isLoopRunning = false;
     }
   }
@@ -1524,6 +1550,7 @@
     if (!visible || !window.atelierBridge) return;
     const delta = camera.position.clone().sub(controls.target);
     const radius = Math.max(.001, delta.length());
+    updateOrbitFog();
     const pitch = 90 - Math.acos(Math.max(-1, Math.min(1, delta.y / radius))) * 180 / Math.PI;
     const yaw = Math.atan2(delta.x, delta.z) * 180 / Math.PI;
     const state = window.atelierBridge.project.camera;
@@ -1538,7 +1565,22 @@
 
   // ── 3D Shift-to-Move Object Interaction & Pointer Controls ─────────
   let shiftPressed = false;
-  let objectDrag = null;
+  let moveMode=false;
+  let transformMode='move',manipulationHelper=null;
+  const transformHint=stage.querySelector('.render-badge');transformHint.id='threeTransformHint';
+  function clearManipulationHelper(){if(manipulationHelper){disposeNode(manipulationHelper);manipulationHelper=null;}transformHint.textContent='Drag to orbit · Shift-drag an object to move';transformHint.style.display='block';}
+  function refreshManipulationHelper(entity){
+    clearManipulationHelper();if(!moveMode)return;entity||=window.atelierBridge?.findEntity(window.atelierBridge.selected);
+    transformHint.style.display='block';transformHint.textContent=transformMode==='rotate'?'Rotate · drag horizontally · Shift snaps to 15°':transformMode==='scale'?'Uniform scale · drag right to enlarge, left to shrink':'Move · drag an object on its floor';
+    if(!entity||!['rotate','scale'].includes(transformMode)||entity.hostWallId||!window.atelierBridge?.floor().items.includes(entity))return;
+    const helper=new THREE.Group(),radius=cm(Math.max(entity.w,entity.d))/2+.2,points=[];
+    helper.position.set(cm(entity.x+entity.w/2),cm((entity.elevation||0)+(window.atelierBridge.floor().elevation||0))+.03,cm(entity.y+entity.d/2));
+    if(transformMode==='rotate'){for(let i=0;i<64;i++){const angle=i*Math.PI/32;points.push(new THREE.Vector3(Math.cos(angle)*radius,.1,Math.sin(angle)*radius));}helper.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0x238fca,depthTest:false})));}
+    else{points.push(new THREE.Vector3(-radius,0,0),new THREE.Vector3(radius,0,0),new THREE.Vector3(0,0,-radius),new THREE.Vector3(0,0,radius),new THREE.Vector3(0,0,0),new THREE.Vector3(0,cm(entity.height||80),0));helper.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0xc07827,depthTest:false})));}
+    manipulationHelper=helper;scene.add(helper);wakeRenderLoop();
+  }
+  function setManipulationMode(mode){if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;requestRebuild();}moveMode=['move','rotate','scale'].includes(mode);transformMode=moveMode?mode:'move';if(window.Atelier){window.Atelier.state.move3DMode=moveMode;window.Atelier.state.transform3DMode=moveMode?mode:'orbit';}controls.enabled=!moveMode&&!walk.active;renderer.domElement.style.cursor=moveMode?'grab':'default';refreshManipulationHelper();}
+  function setMoveMode(on){setManipulationMode(on?'move':'orbit');}
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
   let clickOrigin = null;
 
@@ -1564,7 +1606,7 @@
       renderer.domElement.style.cursor = 'grabbing';
       return;
     }
-    if (shiftPressed && e) {
+    if ((shiftPressed||moveMode) && e) {
       updatePointer(e);
       const hit = getRaycastEntity();
       const hasSelected = !!(window.atelierBridge?.selected && (window.atelierBridge?.findEntity ? window.atelierBridge.findEntity(window.atelierBridge.selected) : null));
@@ -1575,6 +1617,10 @@
   }
 
   renderer.domElement.addEventListener('pointerdown', e => {
+    if(objectDrag){
+      if(e.pointerId!==objectDrag.pointerId){window.atelierBridge?.cancelEdit?.();objectDrag=null;clickOrigin=null;controls.enabled=!walk.active&&!moveMode;requestRebuild();refreshManipulationHelper();}
+      return;
+    }
     clickOrigin = { x: e.clientX, y: e.clientY };
 
     if (walk.active) {
@@ -1586,7 +1632,7 @@
     }
 
     // Shift + Left-click: Initiate 3D Object Move
-    if ((e.shiftKey || shiftPressed) && e.button === 0 && !window.atelierBridge?.project.camera.allFloors) {
+    if ((moveMode || e.shiftKey || shiftPressed) && e.button === 0 && !window.atelierBridge?.project.camera.allFloors) {
       updatePointer(e);
       let hit = getRaycastEntity();
       let targetEntity = hit?.entity;
@@ -1600,14 +1646,16 @@
         }
       }
 
-      if (targetEntity && targetGroup) {
+      if (targetEntity && targetGroup && window.atelierBridge?.canTransform(targetEntity) && ['x','y','w','d'].every(key=>Number.isFinite(targetEntity[key]))) {
+        const mode=moveMode?transformMode:'move';
+        if(mode!=='move'&&(!window.atelierBridge.floor().items.includes(targetEntity)||targetEntity.hostWallId||window.Atelier.isServiceRoute?.(targetEntity))){window.atelierBridge.showToast('Use this transform on an unattached object; edit this element in Properties');return;}
         const bridge = window.atelierBridge;
         if (bridge?.selected !== targetEntity.id) {
           bridge?.select(targetEntity.id);
           requestRebuild();
         }
 
-        bridge?.checkpoint?.();
+        window.Atelier.armEdit();
 
         const elev = cm((targetEntity.elevation || 0)+(bridge.floor().elevation||0));
         const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -elev);
@@ -1621,8 +1669,11 @@
           startPlaneHit,
           origX: targetEntity.x,
           origY: targetEntity.y,
+          original:JSON.parse(JSON.stringify(targetEntity)),mode,
+          pointerId:e.pointerId,startClient:{x:e.clientX,y:e.clientY},
           hasMoved: false
         };
+        refreshManipulationHelper(targetEntity);
 
         controls.enabled = false;
         isInteracting = false;
@@ -1641,6 +1692,15 @@
     if (!visible) return;
 
     if (objectDrag) {
+      if(e.pointerId!==objectDrag.pointerId)return;
+      if(!objectDrag.hasMoved&&Math.hypot(e.clientX-objectDrag.startClient.x,e.clientY-objectDrag.startClient.y)<(e.pointerType==='touch'?6:3))return;
+      window.atelierBridge?.beginEdit?.();
+      if(objectDrag.mode!=='move'){
+        const {entity,original,groupNode,mode}=objectDrag,dx=e.clientX-objectDrag.startClient.x;
+        if(mode==='rotate'){let angle=(original.rotation||0)+dx*.5;if(e.shiftKey)angle=Math.round(angle/15)*15;entity.rotation=dx===0?original.rotation:((Math.round(angle*10)/10)%360+360)%360;groupNode.rotation.y=-(entity.rotation||0)*Math.PI/180;transformHint.textContent='Rotate · '+(entity.rotation||0)+'°';}
+        else{const factor=Math.max(.1,Math.min(5,Math.exp(dx/200))),cx=original.x+original.w/2,cy=original.y+original.d/2;entity.w=original.w*factor;entity.d=original.d*factor;entity.height=(original.height||80)*factor;entity.x=dx===0?original.x:cx-entity.w/2;entity.y=dx===0?original.y:cy-entity.d/2;if(dx===0){if(original.height===undefined)delete entity.height;else entity.height=original.height;}groupNode.scale.setScalar(factor);manipulationHelper?.scale.setScalar(factor);transformHint.textContent='Uniform scale · '+Math.round(factor*100)+'%';}
+        objectDrag.hasMoved=true;selectionHelper?.update();renderer.shadowMap.needsUpdate=true;wakeRenderLoop();return;
+      }
       updatePointer(e);
       const currentPlaneHit = new THREE.Vector3();
       if (raycaster.ray.intersectPlane(objectDrag.dragPlane, currentPlaneHit)) {
@@ -1649,7 +1709,7 @@
         const dx = deltaWorldX * 100;
         const dy = deltaWorldZ * 100;
 
-        const snapFn = window.atelierBridge?.snap || (v => v);
+        const snapFn = e.altKey?(v=>v):(window.atelierBridge?.snap || (v => v));
         const newX = snapFn(objectDrag.origX + dx);
         const newY = snapFn(objectDrag.origY + dy);
 
@@ -1668,8 +1728,7 @@
 
           // Sync smart guides, 2D canvas & inspector
           window.atelierBridge?.applySmartGuides?.([objectDrag.entity]);
-          window.atelierBridge?.draw?.();
-          window.atelierBridge?.renderInspector?.();
+          window.Atelier.requestDraw();
 
           wakeRenderLoop();
         }
@@ -1694,14 +1753,18 @@
 
   window.addEventListener('pointerup', e => {
     if (objectDrag) {
-      if (objectDrag.hasMoved) {
+      if(e.pointerId!==objectDrag.pointerId)return;
+      if (window.atelierBridge?.commitEdit?.()) {
         renderer.shadowMap.needsUpdate = true;
         requestRebuild();
         window.atelierBridge?.queueSave?.();
-        window.atelierBridge?.showToast?.(`Moved ${objectDrag.entity.name || objectDrag.entity.type || 'object'}`);
+        window.atelierBridge?.showToast?.(`${objectDrag.mode==='rotate'?'Rotated':objectDrag.mode==='scale'?'Scaled':'Moved'} ${objectDrag.entity.name || objectDrag.entity.type || 'object'}`);
       }
-      controls.enabled = !walk.active;
+      window.atelierBridge?.renderInspector?.();
+      controls.enabled = !walk.active&&!moveMode;
       objectDrag = null;
+      requestRebuild();
+      refreshManipulationHelper();
       updateHoverCursor(e);
       wakeRenderLoop(5);
       return;
@@ -1729,11 +1792,13 @@
     requestRebuild();
   });
 
-  window.addEventListener('pointercancel', () => {
+  window.addEventListener('pointercancel', e => {
     if (objectDrag) {
-      objectDrag.entity.x=objectDrag.origX;objectDrag.entity.y=objectDrag.origY;requestRebuild();
-      controls.enabled = !walk.active;
+      if(e.pointerId!==objectDrag.pointerId)return;
+      window.atelierBridge?.cancelEdit?.();requestRebuild();
+      controls.enabled = !walk.active&&!moveMode;
       objectDrag = null;
+      refreshManipulationHelper();
     }
     if (walk.dragging) walk.dragging = false;
     if (isInteracting) {
@@ -1741,6 +1806,7 @@
       wakeRenderLoop(15);
     }
   });
+  window.addEventListener('blur',()=>{shiftPressed=false;if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;requestRebuild();refreshManipulationHelper();}walk.dragging=false;walk.keys={};controls.enabled=!walk.active&&!moveMode;});
 
   renderer.domElement.addEventListener('wheel', () => {
     wakeRenderLoop(25);
@@ -1779,13 +1845,11 @@
       }
     }
     if (e.key === 'Escape' && objectDrag) {
-      objectDrag.entity.x = objectDrag.origX;
-      objectDrag.entity.y = objectDrag.origY;
-      objectDrag.groupNode.position.x = cm(objectDrag.origX + objectDrag.entity.w / 2);
-      objectDrag.groupNode.position.z = cm(objectDrag.origY + objectDrag.entity.d / 2);
-      controls.enabled = !walk.active;
+      window.atelierBridge?.cancelEdit?.();
+      controls.enabled = !walk.active&&!moveMode;
       objectDrag = null;
       requestRebuild();
+      refreshManipulationHelper();
       window.atelierBridge?.draw?.();
       window.atelierBridge?.renderInspector?.();
       renderer.domElement.style.cursor = 'default';
@@ -1880,6 +1944,6 @@
     }
   });
 
-  window.atelier3D = { setVisible, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
+  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();

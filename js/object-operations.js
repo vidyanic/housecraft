@@ -23,6 +23,7 @@
     if(o.type==='slab') return (A.floor().slabs ||= []);
     if(o.type==='load') return (A.floor().loads ||= []);
     if(o.type==='structural-wall') return (A.floor().structuralWalls ||= []);
+    if(o.type==='grid') return (A.floor().grids ||= []);
     return A.floor().items;
   }
 
@@ -30,13 +31,14 @@
   function deleteSelected() {
     const s=S(),ids=new Set(s.selectedIds.size?s.selectedIds:(s.selected?[s.selected]:[]));
     if(!ids.size) return;
+    if(Array.from(ids).some(id=>A.findEntity(id)?.locked)){A.showToast('Unlock selected objects before removing them');return;}
     A.checkpoint();
     if(s.selectedIds.size){
       A.floor().items=A.floor().items.filter(o=>!ids.has(o.id));
       if(A.floor().columns) A.floor().columns=A.floor().columns.filter(o=>!ids.has(o.id));
       if(A.floor().beams) A.floor().beams=A.floor().beams.filter(o=>!ids.has(o.id));
     } else {
-      for(const key of ['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls']){
+      for(const key of ['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls','grids']){
         if(!A.floor()[key]) continue;
         const i=A.floor()[key].findIndex(x=>x.id===s.selected);
         if(i>=0){A.floor()[key].splice(i,1);break}
@@ -47,16 +49,30 @@
 
   // ── Nudge ────────────────────────────────────────────────────
   function nudgeEntity(o) {
+    if(!A.canTransform(o))return;
     A.checkpoint();if(o.x!==undefined){o.x+=20;o.y+=20}else{o.x1+=20;o.y1+=20;o.x2+=20;o.y2+=20}A.draw();A.renderInspector();A.queueSave();
   }
 
   // ── Rotate wall 90° ──────────────────────────────────────────
   function rotateWall90() {
-    const s=S(),o=A.findEntity(s.selected);if(!o||o.type!=='wall')return;
+    const s=S(),o=A.findEntity(s.selected);if(!A.canTransform(o)||o.type!=='wall')return;
     A.checkpoint();const cx=(o.x1+o.x2)/2,cy=(o.y1+o.y2)/2,dx=o.x2-o.x1,dy=o.y2-o.y1;o.x1=cx+dy/2;o.y1=cy-dx/2;o.x2=cx-dy/2;o.y2=cy+dx/2;A.draw();A.renderInspector();A.queueSave();A.showToast('Wall rotated 90°');
   }
 
   // ── Clipboard ────────────────────────────────────────────────
+  function copySelectionToFloor(targetId){
+    if(S().pointerBackup)A.cancelInteraction();
+    const source=A.floor(),target=S().project.floors.find(f=>f.id===targetId),selected=selectedEntitiesForClipboard();
+    if(!target||target===source||!selected.length)return [];
+    const collections=['rooms','walls','items','dimensions','columns','beams','slabs','loads','structuralWalls','grids'];
+    const entities=new Map(collections.flatMap(key=>(source[key]||[]).map(o=>[o.id,{o,key}]))),chosen=new Map();
+    function include(id){if(chosen.has(id)||!entities.has(id))return;const record=entities.get(id);chosen.set(id,record);const o=record.o;for(const ref of ['hostWallId','startColumnId','endColumnId','columnId'])if(o[ref])include(o[ref]);for(const id of o.boundaryWallIds||[])include(id);for(const anchor of [o.anchor1,o.anchor2])if(anchor)include(anchor.entityId);}
+    selected.forEach(o=>include(o.id));const remap=new Map([...chosen.keys()].map(id=>[id,A.uid()]));
+    const candidate=A.deep(S().project),destination=candidate.floors.find(f=>f.id===targetId),copies=[];
+    for(const {o,key} of chosen.values()){const copy=A.deep(o);copy.id=remap.get(o.id);delete copy.stairUpperFloorId;for(const ref of ['hostWallId','startColumnId','endColumnId','columnId'])if(copy[ref]){if(remap.has(copy[ref]))copy[ref]=remap.get(copy[ref]);else{delete copy[ref];if(ref==='hostWallId'){delete copy.wallOffset;copy.freePlacement=true;}}}for(const ref of ['anchor1','anchor2'])if(copy[ref]){if(remap.has(copy[ref].entityId))copy[ref].entityId=remap.get(copy[ref].entityId);else delete copy[ref];}if(copy.boundaryWallIds)copy.boundaryWallIds=copy.boundaryWallIds.map(id=>remap.get(id)).filter(Boolean).sort();(destination[key]||=[]).push(copy);copies.push(copy);}
+    A.validateProject(candidate);A.checkpoint();for(const key of collections)target[key]=destination[key];
+    A.bindBeamEnds?.(target);A.syncArchitecture?.(target);window.atelier3D?.requestRebuild();A.syncUI();A.queueSave();A.showToast(`${selected.length} selected object(s) copied to ${target.name} at the same plan position${copies.length>selected.length?' with linked objects':''}`);return copies;
+  }
   function selectedEntitiesForClipboard() { return S().selectedIds.size?A.selectedObjectList():[A.findEntity(S().selected)].filter(Boolean); }
 
   function copySelected() {
@@ -68,7 +84,12 @@
     if(!sources.length) return;
     const s=S();
     A.checkpoint();const offsetCm=s.project.snap?A.gridStep():20;
-    const copies=sources.map(base=>{const copy=A.deep(base);copy.id=A.uid();copy.name=copy.name?`${copy.name} copy`:copy.name;if(copy.x!==undefined){copy.x+=offsetCm;copy.y+=offsetCm}else{copy.x1+=offsetCm;copy.y1+=offsetCm;copy.x2+=offsetCm;copy.y2+=offsetCm}entityCollection(base).push(copy);return copy});
+    const remap=new Map(sources.map(o=>[o.id,A.uid()]));
+    const copies=sources.map(base=>{const copy=A.deep(base);copy.id=remap.get(base.id);delete copy.stairUpperFloorId;if(copy.name)copy.name+= ' copy';if(copy.x!==undefined){copy.x+=offsetCm;copy.y+=offsetCm}else if(copy.type==='grid')copy.position+=offsetCm;else{copy.x1+=offsetCm;copy.y1+=offsetCm;copy.x2+=offsetCm;copy.y2+=offsetCm}
+      for(const key of ['hostWallId','startColumnId','endColumnId','columnId'])if(copy[key]&&remap.has(copy[key]))copy[key]=remap.get(copy[key]);
+      for(const key of ['anchor1','anchor2'])if(copy[key]){const target=remap.get(copy[key].entityId);if(target)copy[key].entityId=target;else delete copy[key];}
+      if(copy.boundaryWallIds){if(copy.boundaryWallIds.every(id=>remap.has(id)))copy.boundaryWallIds=copy.boundaryWallIds.map(id=>remap.get(id)).sort();else{delete copy.boundaryWallIds;delete copy.polygon;}}
+      entityCollection(base).push(copy);return copy;});
     const itemCopies=copies.filter(o=>A.floor().items.includes(o));
     if(itemCopies.length===copies.length)A.setSelection(itemCopies.map(o=>o.id),itemCopies[0]?.id);
     else{s.selectedIds.clear();s.selected=copies[0]?.id||null;A.renderInspector();A.draw()}
@@ -79,20 +100,52 @@
   function duplicateSelected() { createCopies(selectedEntitiesForClipboard()); }
 
   // ── Rotate / scale ───────────────────────────────────────────
-  function rotateSelected() {
-    const s=S(),o=A.findEntity(s.selected);if(!o||o.rotation===undefined)return;
-    A.checkpoint();o.rotation=((o.rotation||0)+90)%360;A.renderInspector();A.draw();A.queueSave();
+  function moveSelectedDistance(distance) {
+    if(!Number.isFinite(distance)||distance===0)return;
+    const s=S(),objects=s.selectedIds.size?A.selectedObjectList():[A.findEntity(s.selected)],direction=A.movementDirection(s.moveConstraint,A.findEntity(s.selected));
+    if(!direction||!objects.length||objects.some(o=>!A.canTransform(o)||o.hostWallId||!A.floor().items.includes(o)))return;
+    if(objects.some(o=>!Number.isFinite(o.x+direction.x*distance)||!Number.isFinite(o.y+direction.y*distance)))return;
+    A.checkpoint();objects.forEach(o=>{o.x+=direction.x*distance;o.y+=direction.y*distance;});A.queueSave();A.renderInspector();A.draw();
+  }
+  function rotateSelected(degrees=90) {
+    if(typeof degrees!=='number')degrees=90;
+    if(!Number.isFinite(degrees))return;
+    const s=S(),o=A.findEntity(s.selected);if(!A.canTransform(o)||o.rotation===undefined)return;
+    if((s.selectedIds.size?A.selectedObjectList():[o]).some(o=>o.hostWallId)){A.showToast('Detach openings from their walls before rotating');return;}
+    if(s.selectedIds.size>1){const objects=A.selectedObjectList();if(objects.some(o=>!A.canTransform(o)))return;const b=A.selectionBounds(),angle=degrees*Math.PI/180;A.checkpoint();A.applyGroupRotation({ids:objects.map(o=>o.id),originals:Object.fromEntries(objects.map(o=>[o.id,A.deep(o)])),center:{x:b.cx,y:b.cy},startAngle:0},{x:b.cx+Math.cos(angle)*100,y:b.cy+Math.sin(angle)*100});A.draw();A.renderInspector();A.queueSave();return;}
+    A.checkpoint();o.rotation=((o.rotation||0)+degrees+360)%360;A.renderInspector();A.draw();A.queueSave();
   }
 
-  function scaleSelected(percent) {
-    const s=S(),o=A.findEntity(s.selected),factor=Math.max(.1,Math.min(5,percent/100));
-    if(!o||!A.floor().items.includes(o)||factor===1)return;
-    A.checkpoint();const cx=o.x+o.w/2,cy=o.y+o.d/2;o.w*=factor;o.d*=factor;o.height*=factor;o.x=cx-o.w/2;o.y=cy-o.d/2;A.renderInspector();A.draw();A.queueSave();A.showToast(`Scaled to ${Math.round(percent)}%`);
+  function scaleSelected(percent,mode='spatial') {
+    if(!['spatial','footprint'].includes(mode))return;
+    if(!Number.isFinite(percent)||percent<=0){A.showToast('Enter a positive scale percentage');return;}
+    const s=S(),objects=s.selectedIds.size?A.selectedObjectList():[A.findEntity(s.selected)],factor=Math.max(.1,Math.min(5,percent/100));
+    if(objects.some(o=>o?.hostWallId)){A.showToast('Use opening width or detach it before uniform scaling');return;}
+    if(factor===1||objects.some(o=>!A.canTransform(o)||!A.floor().items.includes(o)))return;
+    const b=A.movingBox(objects),cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2;
+    A.checkpoint();objects.forEach(o=>{const ox=o.x+o.w/2,oy=o.y+o.d/2;o.w*=factor;o.d*=factor;if(mode==='spatial'){if(Number.isFinite(o.height))o.height*=factor;if(A.isServiceRoute?.(o))o.routePoints.forEach(p=>p.z*=factor);}o.x=cx+(ox-cx)*factor-o.w/2;o.y=cy+(oy-cy)*factor-o.d/2;});A.draw();A.renderInspector();A.queueSave();A.showToast(`Scaled ${mode==='footprint'?'footprint':'in 3D'} to ${Math.round(factor*100)}%`);
   }
 
   // ── Align to wall ────────────────────────────────────────────
+  function editableItemSelection(){const objects=A.selectedObjectList();if(objects.length<2)return null;if(objects.some(o=>!A.canTransform(o)||o.hostWallId)){A.showToast('Unlock or detach selected objects before arranging them');return null;}return objects;}
+  function alignSelection(axis,edge){
+    if(!['x','y'].includes(axis)||!['start','center','end'].includes(edge))return;
+    const objects=editableItemSelection();if(!objects)return;
+    const boxes=objects.map(o=>({o,b:A.itemAabb(o)})),min=axis==='x'?'minX':'minY',max=axis==='x'?'maxX':'maxY';
+    const low=Math.min(...boxes.map(v=>v.b[min])),high=Math.max(...boxes.map(v=>v.b[max])),target=edge==='start'?low:edge==='end'?high:(low+high)/2;
+    const shifts=boxes.map(({o,b})=>({o,delta:target-(edge==='start'?b[min]:edge==='end'?b[max]:(b[min]+b[max])/2)}));
+    if(shifts.every(v=>Math.abs(v.delta)<1e-8))return;A.checkpoint();shifts.forEach(({o,delta})=>o[axis]+=delta);A.queueSave();A.renderInspector();A.draw();
+  }
+  function distributeSelection(axis){
+    if(!['x','y'].includes(axis))return;const objects=editableItemSelection();if(!objects||objects.length<3)return;
+    const min=axis==='x'?'minX':'minY',max=axis==='x'?'maxX':'maxY',boxes=objects.map(o=>({o,b:A.itemAabb(o)})).sort((a,b)=>(a.b[min]+a.b[max])-(b.b[min]+b.b[max]));
+    const start=boxes[0].b[min],end=boxes.at(-1).b[max],total=boxes.reduce((sum,v)=>sum+v.b[max]-v.b[min],0),gap=(end-start-total)/(boxes.length-1);
+    if(gap<0){A.showToast('Spread objects apart before distributing equal gaps');return;}
+    let cursor=start;const shifts=boxes.map(({o,b})=>{const delta=cursor-b[min];cursor+=b[max]-b[min]+gap;return{o,delta};});
+    if(shifts.every(v=>Math.abs(v.delta)<1e-8))return;A.checkpoint();shifts.forEach(({o,delta})=>o[axis]+=delta);A.queueSave();A.renderInspector();A.draw();
+  }
   function alignSelectedToWall() {
-    const s=S(),o=A.findEntity(s.selected);if(!o||!A.floor().items.includes(o)||!A.floor().walls.length)return;
+    const s=S(),o=A.findEntity(s.selected);if(!A.canTransform(o)||!A.floor().items.includes(o)||!A.floor().walls.length)return;
     if(['door','window'].includes(o.shape)){A.checkpoint();A.alignOpeningToWall(o)}
     else{
       const cx=o.x+o.w/2,cy=o.y+o.d/2;let best=null;
@@ -106,13 +159,14 @@
   // ── Z-ordering ───────────────────────────────────────────────
   function bringToFront() {
     const s=S(),o=A.findEntity(s.selected);if(!o||!A.floor().items.includes(o))return;
-    A.checkpoint();const i=A.floor().items.indexOf(o);A.floor().items.splice(i,1);A.floor().items.push(o);A.draw();A.queueSave();window.atelier3D?.requestRebuild();A.showToast('Brought to front');
+    reorderSelection(true);
   }
 
   function sendToBack() {
     const s=S(),o=A.findEntity(s.selected);if(!o||!A.floor().items.includes(o))return;
-    A.checkpoint();const i=A.floor().items.indexOf(o);A.floor().items.splice(i,1);A.floor().items.unshift(o);A.draw();A.queueSave();window.atelier3D?.requestRebuild();A.showToast('Sent to back');
+    reorderSelection(false);
   }
+  function reorderSelection(front){const f=A.floor(),ids=new Set(S().selectedIds.size?S().selectedIds:[S().selected]),moving=f.items.filter(o=>ids.has(o.id)),rest=f.items.filter(o=>!ids.has(o.id));if(!moving.length||moving.some(o=>o.locked))return;const next=front?[...rest,...moving]:[...moving,...rest];if(next.every((o,i)=>o===f.items[i]))return;A.checkpoint();f.items=next;A.queueSave();A.draw();window.atelier3D?.requestRebuild();A.showToast(front?'Brought selection to front':'Sent selection to back');}
 
   // ── Context menu ─────────────────────────────────────────────
   const ctxMenu = document.createElement('div');
@@ -141,8 +195,8 @@
         if(!s.selectedIds.has(hit.id))A.select(hit.id);
         ctxMenu.appendChild(ctxItem('Duplicate',()=>duplicateSelected()));
         ctxMenu.appendChild(ctxItem('Rotate 90°',()=>rotateSelected()));
-        ctxMenu.appendChild(ctxItem('Rotate −90°',()=>{const o=A.findEntity(s.selected);if(o&&o.rotation!==undefined){A.checkpoint();o.rotation=((o.rotation||0)-90+360)%360;A.renderInspector();A.draw();A.queueSave()}}));
-        ctxMenu.appendChild(ctxItem('Align to nearest wall',()=>alignSelectedToWall()));
+        ctxMenu.appendChild(ctxItem('Rotate −90°',()=>rotateSelected(-90)));
+        if(s.selectedIds.size<2)ctxMenu.appendChild(ctxItem('Align to nearest wall',()=>alignSelectedToWall()));
         ctxMenu.appendChild(ctxSep());
         ctxMenu.appendChild(ctxItem('Bring to front',()=>bringToFront()));
         ctxMenu.appendChild(ctxItem('Send to back',()=>sendToBack()));
@@ -164,8 +218,8 @@
 
   Object.assign(A, {
     entityCollection, deleteSelected, nudgeEntity, rotateWall90,
-    selectedEntitiesForClipboard, copySelected, createCopies, pasteClipboard, duplicateSelected,
-    rotateSelected, scaleSelected, alignSelectedToWall,
+    selectedEntitiesForClipboard, copySelected, copySelectionToFloor, createCopies, pasteClipboard, duplicateSelected,
+    rotateSelected, scaleSelected, moveSelectedDistance, alignSelectedToWall, alignSelection, distributeSelection,
     bringToFront, sendToBack, setupContextMenu
   });
 })();
