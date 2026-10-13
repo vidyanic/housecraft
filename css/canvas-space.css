@@ -176,7 +176,16 @@ body.studio.canvas-space.read-only #reveal-project,body.studio.canvas-space.read
 
 @media(max-width:699px){body.studio.canvas-space .app{--reveal-height:44px}}
 /* Mobile tools stay reachable in a horizontal bottom rail, including Expand. */
+#walkNavigation{display:none}
 @media(max-width:699px){
+ body.studio.canvas-space #walkNavigation:not([hidden]){position:absolute;right:12px;bottom:76px;z-index:42;display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:4px;touch-action:none}
+ #walkNavigation button{border:1px solid #9cb7ae;border-radius:8px;background:#ffffffeb;color:#245a48;font-size:24px;touch-action:none;user-select:none}
+ #walkNavigation button[aria-pressed="true"]{background:#dceee8}
+ #walkNavigation [data-walk-direction="ArrowUp"]{grid-column:2;grid-row:1}
+ #walkNavigation [data-walk-direction="ArrowLeft"]{grid-column:1;grid-row:2}
+ #walkNavigation [data-walk-direction="ArrowDown"]{grid-column:2;grid-row:2}
+ #walkNavigation [data-walk-direction="ArrowRight"]{grid-column:3;grid-row:2}
+ body.studio.canvas-space[data-walking="true"] #threeTransformHint{bottom:180px}
  body.studio.canvas-space .app{--rail:0px;--mobile-tools:calc(68px + env(safe-area-inset-bottom,0px))}
  body.studio.canvas-space #workspace #stage{left:0;bottom:var(--mobile-tools);height:auto}
  body.studio.canvas-space .studio-taskbar{left:0;right:0;top:auto;bottom:0;width:auto;height:var(--mobile-tools);box-sizing:border-box;flex-direction:row;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));gap:8px;border-right:0;border-top:1px solid #dce3e9;overflow-x:auto;overflow-y:hidden}

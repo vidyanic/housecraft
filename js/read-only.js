@@ -54,6 +54,7 @@
     },true);
     window.addEventListener('keydown',event=>{
       // Keep browser navigation, tab focus and viewer activation; block editor shortcuts.
+      if(window.atelier3D?.isWalking?.()&&['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.code))return;
       if(event.target.matches?.('select')&&allowed(event.target))return;
       if(['Tab','Escape','Shift','Control','Alt','Meta'].includes(event.key)||
         (['Enter',' '].includes(event.key)&&allowed(event.target)))return;

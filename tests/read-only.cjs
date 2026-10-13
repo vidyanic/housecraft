@@ -49,6 +49,7 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  assert.equal(await page.locator('#studioAddFloor').isVisible(),false);
  assert.equal((await page.locator('#threeTransformHint').innerText()).includes('move'),false);
  await page.screenshot({path:'validation/url-viewer-3d-'+width+'.png'});
+ await checkWalkNavigation(page,width);
  await page.evaluate(()=>Atelier.setWorkspace('architecture'));
  await page.locator('#studioFloor').focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
  assert.equal(await page.evaluate(()=>Atelier.floor().id),'viewer-upper');
@@ -138,4 +139,41 @@ async function checkToolbar(surface,width){
   assert.ok(bounds.canvas.bottom<=bounds.tool.y+1,'Canvas overlaps bottom toolbar');
  }else assert.ok(bounds.tool.w<=65&&bounds.tool.h>200,'Desktop/tablet rail moved');
  assert.equal(bounds.overflow,false,'Viewport overflows horizontally');
+}
+
+async function checkWalkNavigation(page,width){
+ const geometry=await page.evaluate(()=>JSON.stringify(Atelier.state.project.floors));
+ const history=await page.evaluate(()=>Atelier.state.history.length);
+ assert.equal(await page.locator('#walkToggle').count(),1);
+ assert.equal(await page.locator('#walkToggle').evaluate(el=>!!el.closest('#contextCommands')),true);
+ await page.locator('#walkToggle').scrollIntoViewIfNeeded();await page.locator('#walkToggle').click();
+ assert.equal(await page.evaluate(()=>atelier3D.isWalking()),true);
+ assert.equal(await page.locator('#walkToggle').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.locator('#walkNavigation').isVisible(),width<700);
+ if(width<700){
+  for(const [key,axis,sign] of [['ArrowUp',2,-1],['ArrowDown',2,1],['ArrowLeft',0,-1],['ArrowRight',0,1]]){
+   const button=page.locator('[data-walk-direction="'+key+'"]');const before=await page.evaluate(()=>atelier3D.getWalkState().position);
+   await button.tap();const after=await page.evaluate(()=>atelier3D.getWalkState().position);assert.ok((after[axis]-before[axis])*sign>0,'Touch direction reversed: '+key);
+  }
+  const up=page.locator('[data-walk-direction="ArrowUp"]'),bounds=await up.boundingBox();
+  await page.mouse.move(bounds.x+22,bounds.y+22);await page.mouse.down();await page.waitForTimeout(120);
+  assert.equal(await page.evaluate(()=>atelier3D.getWalkState().moving),true);
+  await up.dispatchEvent('pointercancel',{pointerId:1});await page.mouse.up();
+  assert.equal(await page.evaluate(()=>atelier3D.getWalkState().moving),false);
+  const stopped=await page.evaluate(()=>atelier3D.getWalkState().position);await page.waitForTimeout(100);
+  assert.deepEqual(await page.evaluate(()=>atelier3D.getWalkState().position),stopped);
+  await page.mouse.down();await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.mouse.up();
+  assert.equal(await page.evaluate(()=>atelier3D.getWalkState().moving),false);
+  await page.screenshot({path:'validation/mobile-walk-dpad.png'});
+ }else{
+  const before=await page.evaluate(()=>atelier3D.getWalkState().position);
+  await page.keyboard.down('w');await page.waitForTimeout(100);await page.keyboard.up('w');
+  assert.ok(await page.evaluate(before=>atelier3D.getWalkState().position[2]<before[2],before),'Read-only WASD did not navigate');
+ }
+ await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>atelier3D.isWalking()),false);
+ assert.equal(await page.locator('#walkNavigation').isVisible(),false);
+ assert.equal(await page.locator('#walkToggle').getAttribute('aria-pressed'),'false');
+ assert.equal(await page.evaluate(()=>JSON.stringify(Atelier.state.project.floors)),geometry);
+ assert.equal(await page.evaluate(()=>Atelier.state.history.length),history);
+ console.log('PASS toolbar walk-through navigation '+width);
 }

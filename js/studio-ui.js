@@ -81,7 +81,7 @@
     $('#tabBtnCatalog').setAttribute('aria-pressed',String($('#tabBtnCatalog').classList.contains('active')));
     $('#tabBtnInspector').setAttribute('aria-pressed',String($('#tabBtnInspector').classList.contains('active')));
     const structureButton=$('#structureBtn');if(structureButton){const shown=s.structureOnly3D||s.project.showStructure!==false;structureButton.classList.toggle('active',shown);structureButton.setAttribute('aria-pressed',String(shown));structureButton.setAttribute('aria-label',shown?'Hide structure':'Show structure');structureButton.title=shown?'Hide structure':'Show structure';}
-    const k=[discipline,s.selected,!!s.structuralReport,s.tool,!!s.multiSelect,s.transform3DMode,A.structuralLayers.interior,!!s.wallPlotGuide,!!s.structureOnly3D,s.project.showStructure!==false].join(':');
+    const k=[discipline,s.selected,!!s.structuralReport,s.tool,!!s.multiSelect,s.transform3DMode,A.structuralLayers.interior,!!s.wallPlotGuide,!!s.structureOnly3D,s.project.showStructure!==false,!!window.atelier3D?.isWalking?.()].join(':');
     if(k!==contextKey){contextKey=k;renderContext(discipline);}
     const select=$('#studioFloor');const signature=s.project.floors.map(f=>f.id+f.name).join('|');
     if(select.dataset.signature!==signature){select.innerHTML=s.project.floors.map((f,i)=>`<option value="${i}">${esc(f.name)}</option>`).join('');select.dataset.signature=signature;}
@@ -120,6 +120,7 @@
       const o=A.findEntity(A.state.selected);if(o&&A.isServiceRoute(o))commands.append(commandButton('Draw route',()=>A.startServiceRoute(o),'i-dimension'));
     }else{
       const structure=commandButton(A.state.structureOnly3D?'Show whole building':'Structure only',()=>{A.state.structureOnly3D=!A.state.structureOnly3D;window.atelier3D?.requestRebuild();A.draw();renderContext('3d');});structure.id='structureOnly3D';structure.dataset.viewerNavigation='true';structure.setAttribute('aria-pressed',String(!!A.state.structureOnly3D));commands.append(structure);
+      const walkButton=commandButton(window.atelier3D?.isWalking?.()?'Exit walk':'Walk-through',()=>{window.atelier3D?.setWalk(!window.atelier3D.isWalking());A.canvasSpace?.revealCanvas();},'i-pan');walkButton.id='walkToggle';walkButton.dataset.viewerNavigation='true';walkButton.setAttribute('aria-pressed',String(!!window.atelier3D?.isWalking?.()));commands.append(walkButton);
       for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']]){const button=commandButton(label,()=>A.setCameraPreset(preset),'i-cube');button.dataset.viewerNavigation='true';commands.append(button);}
       for(const [mode,label,hint] of [['orbit','Orbit','Drag to orbit · Shift-drag an object to move'],['move','Move objects','Drag an unlocked object to move · Escape cancels'],['rotate','Rotate objects','Drag horizontally to rotate · Shift snaps to 15° · Escape cancels'],['scale','Scale objects','Drag horizontally for uniform scale · Escape cancels']]){const button=commandButton(label,()=>{window.atelier3D?.setManipulationMode(mode);A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext('3d');A.showHint(hint);});if(mode==='orbit')button.dataset.viewerNavigation='true';button.setAttribute('aria-pressed',String((A.state.transform3DMode||'orbit')===mode));button.disabled=mode!=='orbit'&&!!A.state.project.camera.allFloors;commands.append(button);}
     }
@@ -199,6 +200,7 @@
     $('#mobNavHelp').querySelector('span').textContent='Objects';$('#mobNavHelp').querySelector('use').setAttribute('href','#i-search');$('#mobNavHelp').onclick=()=>showLibrary('objects');
     $('#mobNavFloors').hidden=true;$('#chipEditBtn').onclick=openProperties;
     $('#studioFloor').onchange=e=>{const p=A.state.project;p.activeFloor=Number(e.target.value);A.state.selected=null;A.state.selectedIds.clear();A.state.inspectorMode=null;A.syncUI();A.fitPlan();A.queueSave();};$('#studioAddFloor').onclick=A.openFloorModal;
+    window.addEventListener('atelier:walk-change',syncShell);
     const oldSelect=A.select;A.select=id=>{A.state.inspectorMode=null;oldSelect(id);if(!A.readOnly&&!medium()&&id)showPanel('inspector');prepareInspector();};
     const oldStructuralSelect=A.selectStructural;A.selectStructural=id=>{A.state.inspectorMode=null;oldStructuralSelect(id);prepareInspector();};
     const oldInspector=A.renderInspector;A.renderInspector=()=>{oldInspector();prepareInspector();};

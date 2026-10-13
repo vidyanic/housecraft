@@ -1591,7 +1591,7 @@
     else{points.push(new THREE.Vector3(-radius,0,0),new THREE.Vector3(radius,0,0),new THREE.Vector3(0,0,-radius),new THREE.Vector3(0,0,radius),new THREE.Vector3(0,0,0),new THREE.Vector3(0,cm(entity.height||80),0));helper.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0xc07827,depthTest:false})));}
     manipulationHelper=helper;scene.add(helper);wakeRenderLoop();
   }
-  function setManipulationMode(mode){if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;requestRebuild();}moveMode=['move','rotate','scale'].includes(mode);transformMode=moveMode?mode:'move';if(window.Atelier){window.Atelier.state.move3DMode=moveMode;window.Atelier.state.transform3DMode=moveMode?mode:'orbit';}controls.enabled=!moveMode&&!walk.active;renderer.domElement.style.cursor=moveMode?'grab':'default';refreshManipulationHelper();}
+  function setManipulationMode(mode){if(walk.active)setWalk(false);if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;requestRebuild();}moveMode=['move','rotate','scale'].includes(mode);transformMode=moveMode?mode:'move';if(window.Atelier){window.Atelier.state.move3DMode=moveMode;window.Atelier.state.transform3DMode=moveMode?mode:'orbit';}controls.enabled=!moveMode&&!walk.active;renderer.domElement.style.cursor=moveMode?'grab':'default';refreshManipulationHelper();}
   function setMoveMode(on){setManipulationMode(on?'move':'orbit');}
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
   let clickOrigin = null;
@@ -1825,18 +1825,37 @@
   }, { passive: true });
 
   // ── First-person walk-through camera ────────────────────────────────
-  const walk = { active: false, yaw: Math.PI, pitch: 0, keys: {}, dragging: false, lastX: 0, lastY: 0, speed: 2.8, eye: 1.62 };
+  const walk = { active: false, yaw: Math.PI, pitch: 0, keys: {}, touchKeys: {}, dragging: false, lastX: 0, lastY: 0, speed: 2.8, eye: 1.62 };
+  const walkPointers=new Map();
+  const walkNavigation=document.createElement('div');walkNavigation.id='walkNavigation';walkNavigation.hidden=true;walkNavigation.setAttribute('role','group');walkNavigation.setAttribute('aria-label','Walk-through navigation');stage.append(walkNavigation);
+  for(const [key,label,arrow] of [['ArrowUp','Move forward','↑'],['ArrowLeft','Move left','←'],['ArrowDown','Move backward','↓'],['ArrowRight','Move right','→']]){
+    const button=document.createElement('button');button.type='button';button.textContent=arrow;button.dataset.walkDirection=key;button.dataset.viewerNavigation='true';button.setAttribute('aria-label',label);button.setAttribute('aria-pressed','false');walkNavigation.append(button);
+    const release=event=>{walkPointers.delete(event.pointerId);walk.touchKeys[key]=[...walkPointers.values()].includes(key);button.setAttribute('aria-pressed',String(!!walk.touchKeys[key]));wakeRenderLoop(2);};
+    button.addEventListener('pointerdown',event=>{if(!walk.active||event.button!==0)return;event.preventDefault();event.stopPropagation();walkPointers.set(event.pointerId,key);walk.touchKeys[key]=true;button.setPointerCapture(event.pointerId);button.setAttribute('aria-pressed','true');walkStep(key);wakeRenderLoop();});
+    for(const type of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(type,release);
+    button.addEventListener('keydown',event=>{if(!walk.active||!['Enter',' '].includes(event.key))return;event.preventDefault();walk.touchKeys[key]=true;button.setAttribute('aria-pressed','true');wakeRenderLoop();});
+    button.addEventListener('keyup',event=>{if(!['Enter',' '].includes(event.key))return;event.preventDefault();walk.touchKeys[key]=false;button.setAttribute('aria-pressed','false');wakeRenderLoop(2);});
+    button.addEventListener('blur',()=>{walk.touchKeys[key]=false;button.setAttribute('aria-pressed','false');});
+  }
+  function clearWalkInput(){walk.keys={};walk.touchKeys={};walkPointers.clear();walk.dragging=false;walkNavigation.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed','false'));}
+  window.addEventListener('blur',clearWalkInput);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearWalkInput();});
+  function walkPressed(key){return !!(walk.keys[key]||walk.touchKeys[key]);}
+  function walkStep(key){const forward=new THREE.Vector3(Math.sin(walk.yaw),0,Math.cos(walk.yaw)),direction=['ArrowLeft','ArrowRight'].includes(key)?new THREE.Vector3(-forward.z,0,forward.x):forward;camera.position.addScaledVector(direction,['ArrowDown','ArrowLeft'].includes(key)?-.08:.08);applyWalkLook();}
   const clock = new THREE.Clock();
   function applyWalkLook() {
     const dir = new THREE.Vector3(Math.sin(walk.yaw) * Math.cos(walk.pitch), Math.sin(walk.pitch), Math.cos(walk.yaw) * Math.cos(walk.pitch));
     camera.lookAt(camera.position.clone().add(dir));
   }
   function isWalkMoving() {
-    return !!(walk.keys.KeyW || walk.keys.KeyS || walk.keys.KeyA || walk.keys.KeyD ||
-              walk.keys.ArrowUp || walk.keys.ArrowDown || walk.keys.ArrowLeft || walk.keys.ArrowRight);
+    return ['KeyW','KeyS','KeyA','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(walkPressed);
   }
   function setWalk(on) {
-    walk.active = !!on; controls.enabled = !walk.active; walk.keys = {};
+    if(on&&!walk.active)setManipulationMode('orbit');
+    walk.active = !!on; controls.enabled = !walk.active; clearWalkInput();
+    walkNavigation.hidden=!walk.active;document.body.dataset.walking=String(walk.active);
+    if(walk.active){transformHint.textContent=innerWidth<700?'Drag to look · Tap or hold arrows to move':'Drag to look · WASD/arrows to move · Esc to exit';transformHint.style.display='block';}
+    else clearManipulationHelper();
     if (walk.active) {
       camera.fov = 58; camera.updateProjectionMatrix();
       const t = controls.target;
@@ -1847,6 +1866,7 @@
       setCamera(window.atelierBridge && window.atelierBridge.project.camera);
     }
     wakeRenderLoop(3);
+    window.dispatchEvent(new CustomEvent('atelier:walk-change'));
   }
 
   window.addEventListener('keydown', e => {
@@ -1869,6 +1889,7 @@
       return;
     }
     if (!walk.active || !visible) return;
+    if(e.key==='Escape'){setWalk(false);e.preventDefault();return;}
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     walk.keys[e.code] = true;
     if (e.code.startsWith('Arrow')) e.preventDefault();
@@ -1918,10 +1939,10 @@
           const spd = walk.speed * ((walk.keys.ShiftLeft || walk.keys.ShiftRight) ? 2.1 : 1) * dt;
           const fwd = new THREE.Vector3(Math.sin(walk.yaw), 0, Math.cos(walk.yaw));
           const right = new THREE.Vector3(-fwd.z, 0, fwd.x); // forward × up (fixes reversed A/D)
-          if (walk.keys.KeyW || walk.keys.ArrowUp) camera.position.addScaledVector(fwd, spd);
-          if (walk.keys.KeyS || walk.keys.ArrowDown) camera.position.addScaledVector(fwd, -spd);
-          if (walk.keys.KeyA || walk.keys.ArrowLeft) camera.position.addScaledVector(right, -spd);
-          if (walk.keys.KeyD || walk.keys.ArrowRight) camera.position.addScaledVector(right, spd);
+          if (walkPressed('KeyW') || walkPressed('ArrowUp')) camera.position.addScaledVector(fwd, spd);
+          if (walkPressed('KeyS') || walkPressed('ArrowDown')) camera.position.addScaledVector(fwd, -spd);
+          if (walkPressed('KeyA') || walkPressed('ArrowLeft')) camera.position.addScaledVector(right, -spd);
+          if (walkPressed('KeyD') || walkPressed('ArrowRight')) camera.position.addScaledVector(right, spd);
           camera.position.y = cm(window.atelierBridge.floor().elevation||0)+walk.eye;
           applyWalkLook();
         } else {
@@ -1956,6 +1977,6 @@
     }
   });
 
-  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries,cameraDistance:camera.position.distanceTo(controls.target),cameraTarget:controls.target.toArray()}) };
+  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, getWalkState:()=>({active:walk.active,moving:isWalkMoving(),position:camera.position.toArray()}), requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries,cameraDistance:camera.position.distanceTo(controls.target),cameraTarget:controls.target.toArray()}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();
