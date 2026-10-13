@@ -16,6 +16,7 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
   assert.equal(await page.evaluate(()=>Atelier.state.viewMode),tab==='3d'?'3d':'plan');
   if(tab!=='3d')assert.equal(await page.evaluate(()=>Atelier.state.workspace||'architecture'),tab==='unknown'?'architecture':tab);
   else assert.equal(await page.evaluate(()=>Atelier.state.project.camera.allFloors),true);
+  if(tab==='3d')assert.equal(await page.evaluate(()=>Atelier.state.project.camera.wallMode),'full');
   assert.equal(await page.locator('#projectName').isDisabled(),false);
   assert.equal(await page.locator('.topbar').evaluate(el=>el.inert),false);
  }
@@ -40,6 +41,8 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  assert.equal(await page.locator('#projectName').isDisabled(),true);
  assert.equal(await page.evaluate(()=>Atelier.state.viewMode),'3d');
  assert.equal(await page.evaluate(()=>Atelier.state.project.camera.allFloors),true);
+ assert.equal(await page.evaluate(()=>Atelier.state.project.camera.wallMode),'full');
+ await checkToolbar(page,width);
  assert.equal(await page.locator('.topbar').evaluate(el=>el.inert),true);
  assert.equal(await page.locator('#catalogPanel').evaluate(el=>el.inert),true);
  assert.equal(await page.locator('#inspectorPanel').evaluate(el=>el.inert),true);
@@ -58,6 +61,7 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  assert.equal(await page.evaluate(()=>JSON.stringify(Atelier.floor())),before);
  assert.equal(await page.evaluate(()=>Atelier.state.history.length),0);
  await page.locator('#expandCanvas').click();
+ await checkToolbar(page,width);
  await page.locator('#expandCanvas').focus();await page.keyboard.press('Enter');
  await page.locator('#fitBtn').tap();
  await page.screenshot({path:'validation/read-only-plan-'+width+'.png'});
@@ -86,6 +90,15 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  await page.setViewportSize({width:1600,height:1000});
  await page.evaluate(width=>{const frame=document.querySelector('iframe');frame.style.width=width+'px';frame.style.height='900px';},width);
  await page.locator('iframe').screenshot({path:'validation/publishing-ui-preview-'+width+'.png'});
+ const frame=page.frames().find(frame=>frame.url().includes('index.html'));
+ for(const workspace of ['architecture','structure','services','3d']){
+  await frame.evaluate(workspace=>workspace==='3d'?Atelier.setView('3d'):Atelier.setWorkspace(workspace),workspace);
+  await checkToolbar(frame,width);
+  if(width===390){
+   await frame.evaluate(()=>Atelier.canvasSpace.revealCanvas());
+   await page.locator('iframe').screenshot({path:'validation/mobile-toolbar-'+workspace+'.png'});
+  }
+ }
  }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
@@ -112,4 +125,17 @@ async function checkCustomControls(page){
  await page.waitForFunction(()=>document.querySelector('#saveBtn').disabled);
  assert.equal(await snapshot(),before);
  assert.equal(await page.evaluate(()=>Atelier.state.history.length),0);
+}
+
+async function checkToolbar(surface,width){
+ const bounds=await surface.evaluate(()=>{
+  const tool=document.querySelector('.studio-taskbar').getBoundingClientRect(),canvas=document.querySelector('#stage').getBoundingClientRect(),workspace=document.querySelector('#workspace').getBoundingClientRect();
+  return {tool:{x:tool.x,y:tool.y,w:tool.width,h:tool.height,bottom:tool.bottom},canvas:{x:canvas.x,bottom:canvas.bottom},workspace:{bottom:workspace.bottom},overflow:document.documentElement.scrollWidth>innerWidth};
+ });
+ if(width<700){
+  assert.equal(bounds.tool.x,0);assert.ok(bounds.tool.w>=width-2,'Mobile toolbar is not full width');
+  assert.ok(Math.abs(bounds.tool.bottom-bounds.workspace.bottom)<2,'Toolbar is not at bottom');
+  assert.ok(bounds.canvas.bottom<=bounds.tool.y+1,'Canvas overlaps bottom toolbar');
+ }else assert.ok(bounds.tool.w<=65&&bounds.tool.h>200,'Desktop/tablet rail moved');
+ assert.equal(bounds.overflow,false,'Viewport overflows horizontally');
 }

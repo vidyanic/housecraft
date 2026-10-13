@@ -24,6 +24,6 @@ Choose the opening workspace with `?tab=3d`, `?tab=architecture`, `?tab=structur
 https://USERNAME.github.io/REPOSITORY/?readonly=1&tab=3d&layout=layouts/house.json
 ```
 
-Entering 3D defaults to all floors stacked at their elevations. The button beside Fit switches to the active floor; re-entering 3D restores the stack. Read-only opens with the project/editing bars, Library, Properties and history controls hidden. Workspace tabs, floor selection, viewing presets, orbit, Fit/zoom, Help and Expand remain available.
+Entering 3D defaults to all floors stacked at their elevations with full-height walls. The button beside Fit switches to the active floor; re-entering 3D restores the stack and full walls. Read-only opens with the project/editing bars, Library, Properties and history controls hidden. Workspace tabs, floor selection, viewing presets, orbit, Fit/zoom, Help and Expand remain available. Below 700 px, the toolbar is a horizontally scrollable bottom row that remains available in Expand.
 
 Each person's editable projects remain in their own browser; publishing the app does not upload your local saved projects. Published JSON is downloadable, and the URL flag is a viewer convenience, not security or permission enforcement. Publish only layouts intended for public sharing. Removing the flag opens the ordinary local editor, without loading the shared JSON.

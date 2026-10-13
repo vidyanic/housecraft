@@ -107,6 +107,7 @@
       const interior=commandButton(A.structuralLayers.interior?'Hide interior':'Show interior',()=>{A.structuralLayers.interior=!A.structuralLayers.interior;A.renderInspector();A.draw();renderContext('structure');});interior.id='structInteriorToggle';interior.setAttribute('aria-pressed',String(A.structuralLayers.interior));commands.append(interior);
       for(const [type,label] of [['slab','Slab'],['structural-wall','RC wall'],['load','Load'],['grid','Grid']]){const button=commandButton(label,()=>A.addStructuralObject(type),'i-grid');button.dataset.structAdd=type;button.draggable=true;button.style.touchAction='none';button.title='Click to add · drag onto the plan';commands.append(button);};
       commands.append(commandButton('Screening',()=>{$('#structAnalyze')?.click();activeSheet='results';prepareInspector();showPanel('inspector');}));
+      const improve=commandButton('Analyze & improve',()=>{A.proposeStructuralFixes('building');chooseSheet('review');showPanel('inspector');});improve.id='structImproveBuilding';commands.append(improve);
       commands.append(commandButton('Modal analysis',()=>{$('#structDynamic')?.click();activeSheet='results';prepareInspector();showPanel('inspector');}));
     }else if(discipline==='architecture'){
       const square=commandButton('Square walls 90°',A.squareWalls,'i-wall');square.id='squareWalls';square.title='Align current-floor walls to plot axes, keeping joined corners and locked walls';commands.append(square);

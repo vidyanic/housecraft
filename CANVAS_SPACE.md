@@ -1,6 +1,6 @@
 # Persistent studio shell
 
-The current revision supersedes the initial auto-hidden shell. Desktop opens with the project header, workspace row, Library and Properties visible. Both side panels are 280 px wide, aligned beneath a 54 px project header and a 48 px workspace row. A permanent 64 px modeling rail sits at the left (56 px on phones).
+The current revision supersedes the initial auto-hidden shell. Desktop opens with the project header, workspace row, Library and Properties visible. Both side panels are 280 px wide, aligned beneath a 54 px project header and a 48 px workspace row. A permanent 64 px modeling rail sits at the left on desktop/tablet. Below 700 px, the same controls form a horizontally scrollable bottom toolbar with safe-area padding; canvas controls and overlay sheets stay above it. Expand retains the toolbar.
 
 ## Comparison and critique
 

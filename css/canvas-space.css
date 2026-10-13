@@ -175,3 +175,20 @@ body.studio.canvas-space.read-only #reveal-project,body.studio.canvas-space.read
 .struct-reference-invalid{border:2px solid #bd362e!important;background:#fff4f0!important}
 
 @media(max-width:699px){body.studio.canvas-space .app{--reveal-height:44px}}
+/* Mobile tools stay reachable in a horizontal bottom rail, including Expand. */
+@media(max-width:699px){
+ body.studio.canvas-space .app{--rail:0px;--mobile-tools:calc(68px + env(safe-area-inset-bottom,0px))}
+ body.studio.canvas-space #workspace #stage{left:0;bottom:var(--mobile-tools);height:auto}
+ body.studio.canvas-space .studio-taskbar{left:0;right:0;top:auto;bottom:0;width:auto;height:var(--mobile-tools);box-sizing:border-box;flex-direction:row;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));gap:8px;border-right:0;border-top:1px solid #dce3e9;overflow-x:auto;overflow-y:hidden}
+ body.studio.canvas-space .toolrail{width:auto;flex-direction:row;gap:4px}
+ body.studio.canvas-space .tool{width:52px;min-width:52px;height:52px;min-height:52px}
+ body.studio.canvas-space .context-commands{flex-direction:row;border-top:0;border-left:1px solid #dce3e9;padding:0 0 0 8px;gap:4px}
+ body.studio.canvas-space .context-commands .task-button{width:58px;min-width:58px;height:52px;min-height:52px}
+ body.studio.canvas-space .studio-taskbar [draggable="true"]{touch-action:pan-x!important}
+ body.studio.canvas-space #workspace #catalogPanel,body.studio.canvas-space #workspace #inspectorPanel{left:8px;right:8px;top:64px;bottom:calc(var(--mobile-tools) + 64px);width:auto;max-width:none;height:auto}
+ body.studio.canvas-space .canvas-bottom{left:auto;right:8px;bottom:calc(var(--mobile-tools) + 8px)}
+ body.studio.canvas-space .space-catalog{left:8px;bottom:calc(var(--mobile-tools) + 64px)}
+ body.studio.canvas-space .space-inspector{left:64px;bottom:calc(var(--mobile-tools) + 64px)}
+ body.studio.canvas-space .hint{bottom:92px}
+ body.studio.canvas-space .read-only-status{top:60px}
+}

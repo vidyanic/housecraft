@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const context={window:{},console};vm.createContext(context);for(const f of ['js/utilities.js','js/constants.js','js/structural-model.js','js/frame-solver.js','js/seismic-analysis.js','js/structural-proposals.js'])vm.runInContext(fs.readFileSync(f,'utf8'),context,{filename:f});const A=context.window.Atelier;
+const context={window:{},console};vm.createContext(context);for(const f of ['js/utilities.js','js/constants.js','js/structural-model.js','js/frame-solver.js','js/structural-audit.js','js/seismic-analysis.js','js/structural-proposals.js'])vm.runInContext(fs.readFileSync(f,'utf8'),context,{filename:f});const A=context.window.Atelier;
 let passed=0;function test(name,fn){fn();console.log('PASS '+name);passed++;}const near=(a,b,tol=1e-8)=>assert.ok(Math.abs(a-b)<=tol*Math.max(1,Math.abs(b)),`${a} != ${b}`);
 const col=(id,x,y)=>({id,x:x-15,y:y-15,w:30,d:30,height:300,material:'RCC M25',steelGrade:'Fe500',rebarSpec:'4-T16 + 2-T12'});
 const floor=(id,elevation=0)=>({id,elevation,rooms:[{id:'slab-'+id,x:0,y:0,w:400,d:400}],walls:[],items:[],slabs:[],columns:[col(id+'a',0,0),col(id+'b',400,0),col(id+'c',0,400),col(id+'d',400,400)],beams:[],loads:[]});
@@ -24,3 +24,32 @@ test('Gravity and seismic combinations produce finite signed member force envelo
 console.log(`${passed} engineering benchmark groups passed in total.`);
 test('Explicit cantilever tip stays free and dangling joint IDs are not rebound',()=>{const f=floor('cantilever'),p={floors:[f]};A.normalizeStructure(p);f.beams=[{id:'cb',type:'beam',x1:0,y1:0,x2:-200,y2:0,startColumnId:f.columns[0].id,endColumnId:'',supportCondition:'cantilever',width:25,depth:40,material:'M25'}];const model=A.buildingFrame(p);assert.equal(model.issues.length,0);assert.ok(model.nodes.some(n=>n.id==='tip:cantilever:cb'&&!n.fixed.length));assert.ok(A.analyzeFrame(model,[{node:'tip:cantilever:cb',force:[0,0,-10,0,0,0]}]).displacement.every(Number.isFinite));f.beams[0].startColumnId='missing';A.bindBeamEnds(f);assert.equal(f.beams[0].startColumnId,'missing');assert.ok(A.buildingFrame(p).issues.length>0);});
 console.log(`${passed} engineering benchmark groups passed including explicit cantilevers.`);
+test('Beam section envelope includes panel, wall and self weight with correct UDL moments',()=>{
+ const f=floor('load'),p={floors:[f]},b={id:'b',x1:0,y1:0,x2:400,y2:0,width:25,depth:40,supportCondition:'simply-supported'};
+ const r=A.beamLoadScreen(f,b,p);near(r.dead,4*4.75+.25*.4*25);near(r.live,8);near(r.moment,1.5*(r.dead+r.live)*16/8);
+ const cant=A.beamLoadScreen(f,{...b,supportCondition:'cantilever'},p);near(cant.moment,4*r.moment);near(cant.shear,2*r.shear);
+ f.walls.push({x1:0,y1:0,x2:400,y2:0,thickness:20,height:300});near(A.beamLoadScreen(f,b,p).dead-r.dead,.2*3*19);
+});
+test('Building correction squares connected stacks, follows irregular heights and stays pure/bounded',()=>{
+ const low=floor('low'),high=floor('high',320),p={floors:[high,low],activeFloor:0};A.normalizeStructure(p);
+ low.columns[1].y+=3;high.columns[1].y+=4;
+ for(const f of p.floors)f.beams.push({id:f.id+'b1',type:'beam',x1:0,y1:0,x2:400,y2:f===low?3:4,startColumnId:f.columns[0].id,endColumnId:f.columns[1].id,width:25,depth:50});
+ const source=JSON.stringify(p),q=A.createStructuralProposal(p,'coordinate',high.id);assert.equal(JSON.stringify(p),source);
+ const lower=q.candidate.floors.find(f=>f.id==='low'),upper=q.candidate.floors.find(f=>f.id==='high');assert.equal(lower.columns[0].height,320);
+ near(lower.beams[0].y1,lower.beams[0].y2);near(upper.beams[0].y1,lower.beams[0].y1);
+ for(const f of q.candidate.floors)for(const c of f.columns){const old=p.floors.find(v=>v.id===f.id).columns.find(v=>v.id===c.id);assert.ok(Math.hypot(c.x-old.x,c.y-old.y)<=5.00001);}
+});
+test('Repair leaves locked members, ambiguous joints and cantilever free tips unchanged',()=>{
+ const f=floor('locks'),p={floors:[f]};A.normalizeStructure(p);f.columns[0].locked=true;f.columns.push(col('duplicate',1,0));
+ f.beams=[{id:'locked',type:'beam',x1:0,y1:0,x2:400,y2:0,startColumnId:f.columns[0].id,endColumnId:f.columns[1].id,locked:true,width:25,depth:40}, {id:'amb',type:'beam',x1:0,y1:0,x2:400,y2:0,startColumnId:'missing',endColumnId:f.columns[1].id,width:25,depth:40}, {id:'cant',type:'beam',x1:400,y1:0,x2:0,y2:0,startColumnId:f.columns[1].id,endColumnId:'',supportCondition:'cantilever',width:25,depth:60}];
+ A.normalizeStructure(p);const q=A.createStructuralProposal(p,'coordinate',f.id),after=q.candidate.floors[0];assert.equal(JSON.stringify(after.beams[0]),JSON.stringify(f.beams[0]));assert.equal(after.beams[1].startColumnId,'missing');assert.equal(after.beams[2].endColumnId,'');
+});
+test('Located plot clearance uses rotated footing extent and signature includes navigation-independent inputs',()=>{
+ const f=floor('boundary'),p={floors:[f],site:{width:600,depth:600},builtUp:{originX:-100,originY:-100}};
+ f.columns[0].footingWidth=120;f.columns[0].footingDepth=120;
+ let r=A.structuralAudit(p);assert.equal(r.floorCount,1);assert.ok(!r.issues.some(i=>i.entityId===f.columns[0].id&&i.code==='footing'));
+ f.columns[0].rotation=45;r=A.structuralAudit(p);assert.ok(r.issues.some(i=>i.entityId===f.columns[0].id&&i.code==='footing'));
+ const sig=A.structuralSignature(p);p.site.width=500;assert.notEqual(A.structuralSignature(p),sig);
+ const updated=A.structuralSignature(p);f.isRoof=true;assert.notEqual(A.structuralSignature(p),updated);
+});
+console.log(`${passed} engineering benchmark groups including building coordination.`);
