@@ -22,33 +22,44 @@
     const oldTool=A.setTool;
     A.setTool=()=>oldTool('pan');
     A.setTool('pan');
+    document.body.classList.add('read-only');
+    const badge=document.createElement('div');
+    badge.className='read-only-status';badge.id='readOnlyStatus';badge.textContent='Read-only';
+    badge.setAttribute('role','status');document.querySelector('#stage').append(badge);
     // Explicit navigation allowlist: newly added editor controls default to disabled.
     const ids=new Set(['studioFloor','fitBtn','gridBtn','structureBtn','floorViewMode',
       'zoomIn','zoomOut','stageZoomIn','stageZoomOut','expandCanvas','helpBtn','menuHelp',
       'mobileMenuBtn','closeHelp','closeHelpHeader','closeCatalogBtn','closeInspectorBtn',
       'structInteriorToggle','drawingScale','exportSvgBtn','exportPdfBtn','printPlanBtn']);
-    function allowed(el){return ids.has(el.id)||el.id.startsWith('reveal-')||
-      el.matches('[data-view],[data-workspace],[data-sheet-tab],[data-nav],[data-library],.chrome-hide,[data-tool="pan"]');}
+    const controls='button,input,select,textarea,.switch,[role="button"],[role="switch"],[contenteditable="true"],[draggable]';
+    function allowed(el){return el instanceof Element&&(ids.has(el.id)||el.id.startsWith('reveal-')||
+      el.matches('[data-view],[data-workspace],[data-sheet-tab],[data-nav],[data-library],.chrome-hide,[data-tool="pan"]'));}
     function refresh(){
-      document.querySelectorAll('button,input,select,textarea').forEach(el=>{
-        if(!allowed(el)&&!el.disabled){el.disabled=true;el.dataset.viewerDisabled='true';}
+      document.querySelectorAll(controls).forEach(el=>{
+        if(allowed(el))return;
+        if('disabled' in el&&!el.disabled)el.disabled=true;
+        if(el.getAttribute('aria-disabled')!=='true')el.setAttribute('aria-disabled','true');
+        if(el.matches('.switch,[role="button"],[role="switch"]')&&el.tabIndex!==-1)el.tabIndex=-1;
+        if(el.isContentEditable)el.contentEditable='false';
       });
       document.querySelectorAll('[draggable="true"]').forEach(el=>el.draggable=false);
       const status=document.querySelector('#saveState');
       if(status&&status.textContent!=='Read-only · shared layout')status.textContent='Read-only · shared layout';
     }
     for(const type of ['pointerdown','click','input','change','dragstart','drop','dblclick'])document.addEventListener(type,event=>{
-      const control=event.target.closest('button,input,select,textarea,[draggable]');
+      const control=event.target.closest?.(controls);
       if(type==='drop'||(control&&!allowed(control))){event.preventDefault();event.stopImmediatePropagation();}
     },true);
     window.addEventListener('keydown',event=>{
       // Keep browser navigation, tab focus and viewer activation; block editor shortcuts.
+      if(event.target.matches?.('select')&&allowed(event.target))return;
       if(['Tab','Escape','Shift','Control','Alt','Meta'].includes(event.key)||
         (['Enter',' '].includes(event.key)&&allowed(event.target)))return;
       event.stopImmediatePropagation();
-      if(event.ctrlKey||event.metaKey||['Delete','Backspace','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))event.preventDefault();
+      const editShortcut=(event.ctrlKey||event.metaKey)&&['z','y','v','x','d','s','o','n','k'].includes(event.key.toLowerCase());
+      if(editShortcut||['Enter',' ','Delete','Backspace','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))event.preventDefault();
     },true);
-    new MutationObserver(refresh).observe(document.body,{childList:true,subtree:true});
+    new MutationObserver(refresh).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','draggable','tabindex','contenteditable']});
     refresh();
   };
 })();

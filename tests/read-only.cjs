@@ -4,6 +4,7 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  try{
  const page=await browser.newPage({hasTouch:true});
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto('http://127.0.0.1:4173/tests/browser.html');
  await page.click('#run');
  await page.waitForFunction(()=>!document.querySelector('#run').disabled,{},{timeout:60000});
@@ -13,14 +14,24 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  await page.goto('http://127.0.0.1:4173/?test=1');
  const fixture=await page.evaluate(()=>window.Atelier.state.project);
  fixture.name='Shared viewer fixture';
+ fixture.floors.push({id:'viewer-upper',name:'Viewer upper floor',elevation:300,rooms:[],walls:[],items:[],dimensions:[],columns:[],beams:[]});
  await page.route('**/layouts/shared.json',route=>route.fulfill({json:fixture}));
  await page.evaluate(()=>localStorage.setItem('atelier-plan-test-project',JSON.stringify({sentinel:true})));
+ await page.goto('http://127.0.0.1:4173/?test=1&readonly=1');
+ await page.waitForFunction(()=>document.querySelector('#readOnlyStatus'));
+ assert.equal(await page.evaluate(()=>Atelier.state.project.name),await page.evaluate(()=>ATELIER_REFERENCE_LAYOUT.name));
+ await checkCustomControls(page);
+ console.log('PASS bare readonly URL and custom controls');
  for(const width of [1440,820,390]){
  await page.setViewportSize({width,height:900});
  await page.goto('http://127.0.0.1:4173/?test=1&readonly=1&layout=layouts/shared.json');
  await page.waitForFunction(()=>document.querySelector('#saveState')?.textContent.includes('Read-only'));
  assert.equal(await page.evaluate(()=>Atelier.state.project.name),'Shared viewer fixture');
  assert.equal(await page.locator('#projectName').isDisabled(),true);
+ await page.locator('#studioFloor').focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+ assert.equal(await page.evaluate(()=>Atelier.floor().id),'viewer-upper');
+ await page.locator('#studioFloor').selectOption('0');
+ await checkCustomControls(page);
  const before=await page.evaluate(()=>JSON.stringify(Atelier.floor()));
  await page.keyboard.press('w');await page.keyboard.press('Delete');await page.keyboard.press('Control+z');
  const canvas=page.locator('#planCanvas');const box=await canvas.boundingBox();
@@ -37,13 +48,19 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  await page.evaluate(ws=>ws==='3d'?Atelier.setView('3d'):Atelier.setWorkspace(ws),workspace);
  assert.equal(await page.evaluate(()=>Atelier.state.tool),'pan');
  assert.equal(await page.evaluate(()=>Atelier.canTransform(Atelier.floor().items[0])),false);
+ await checkCustomControls(page);
  }
+ await page.evaluate(()=>Atelier.select(Atelier.floor().items[0].id));
+ await page.waitForFunction(()=>document.querySelector('#aspectToggle')?.getAttribute('aria-disabled')==='true');
+ await checkCustomControls(page);
+ await page.evaluate(()=>Atelier.select(null));
  await page.screenshot({path:'validation/read-only-'+width+'.png'});
  console.log('PASS read-only viewer '+width);
  }
  await page.goto('http://127.0.0.1:4173/?readonly=1&layout=missing.json');
  await page.waitForFunction(()=>document.body.textContent.includes('Shared layout could not be opened'));
  console.log('PASS unavailable layout fails closed');
+ assert.deepEqual(errors,[]);
  await page.goto('http://127.0.0.1:4173/tests/ui-preview.html');
  for(const width of [1440,820,390]){
  await page.setViewportSize({width:1600,height:1000});
@@ -52,3 +69,27 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+async function checkCustomControls(page){
+ const snapshot=()=>page.evaluate(()=>{const {camera,activeFloor,...layout}=Atelier.state.project;return JSON.stringify(layout);});
+ const before=await snapshot();
+ for(const toggle of await page.locator('.switch').all()){
+  assert.equal(await toggle.getAttribute('aria-disabled'),'true');
+  assert.equal(await toggle.getAttribute('tabindex'),'-1');
+  await toggle.dispatchEvent('click');
+  if(await toggle.isVisible())await toggle.click({force:true});
+  if(await toggle.evaluate(el=>{el.focus();return document.activeElement===el;})){await page.keyboard.press('Enter');await page.keyboard.press('Space');}
+ }
+ for(const card of await page.locator('[data-object]').all()){
+  assert.equal(await card.getAttribute('aria-disabled'),'true');
+  assert.equal(await card.getAttribute('draggable'),'false');
+  await card.dispatchEvent('click');
+ }
+ const card=page.locator('[data-object]').first();
+ if(await card.count()&&await card.evaluate(el=>{el.focus();return document.activeElement===el;})){await page.keyboard.press('Enter');await page.keyboard.press('Space');}
+ // Newly rendered and re-enabled controls must still be protected.
+ await page.evaluate(()=>{const toggle=document.querySelector('.switch');if(toggle)toggle.tabIndex=0;document.querySelector('#saveBtn').disabled=false;});
+ await page.waitForFunction(()=>document.querySelector('#saveBtn').disabled);
+ assert.equal(await snapshot(),before);
+ assert.equal(await page.evaluate(()=>Atelier.state.history.length),0);
+}
