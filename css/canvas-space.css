@@ -152,6 +152,7 @@ body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-naviga
 #floorModal .floor-delete-confirm p { margin-bottom: 8px; }
 #floorModal [data-floor-action="confirm-delete"] { color: #a13124; }
 .read-only [aria-disabled="true"] { opacity: .5; cursor: default; }
+body.studio.canvas-space.read-only #reveal-project,body.studio.canvas-space.read-only #reveal-catalog,body.studio.canvas-space.read-only #reveal-inspector,body.studio.canvas-space.read-only .canvas-history,body.studio.canvas-space.read-only #studioAddFloor,body.studio.canvas-space.read-only #toolrail [data-tool]:not([data-tool="pan"]),body.studio.canvas-space.read-only #contextCommands button:not([data-viewer-navigation]):not(#structInteriorToggle) { display: none!important; }
 .read-only-status { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 9; padding: 6px 10px; border: 1px solid #d8e4dd; border-radius: 8px; background: #f7faf7; color: #37564a; font-size: 11px; pointer-events: none; }
 @media (max-width: 480px) {
   #floorModal .modal { padding: 16px; }

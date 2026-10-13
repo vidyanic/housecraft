@@ -23,6 +23,8 @@
     A.setTool=()=>oldTool('pan');
     A.setTool('pan');
     document.body.classList.add('read-only');
+    for(const panel of ['project','catalog','inspector'])A.canvasSpace.hidePanel(panel,true);
+    document.querySelector('.workspace-navigation').append(document.querySelector('#helpBtn'));
     const badge=document.createElement('div');
     badge.className='read-only-status';badge.id='readOnlyStatus';badge.textContent='Read-only';
     badge.setAttribute('role','status');document.querySelector('#stage').append(badge);
@@ -33,7 +35,7 @@
       'structInteriorToggle','drawingScale','exportSvgBtn','exportPdfBtn','printPlanBtn']);
     const controls='button,input,select,textarea,.switch,[role="button"],[role="switch"],[contenteditable="true"],[draggable]';
     function allowed(el){return el instanceof Element&&(ids.has(el.id)||el.id.startsWith('reveal-')||
-      el.matches('[data-view],[data-workspace],[data-sheet-tab],[data-nav],[data-library],.chrome-hide,[data-tool="pan"]'));}
+      el.matches('[data-view],[data-workspace],[data-viewer-navigation],[data-sheet-tab],[data-nav],[data-library],.chrome-hide,[data-tool="pan"]'));}
     function refresh(){
       document.querySelectorAll(controls).forEach(el=>{
         if(allowed(el))return;

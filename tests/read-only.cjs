@@ -10,11 +10,21 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  await page.waitForFunction(()=>!document.querySelector('#run').disabled,{},{timeout:60000});
  assert.deepEqual(await page.locator('.fail').allTextContents(),[]);
  console.log(await page.locator('#summary').innerText());
+ for(const tab of ['architecture','structure','services','3d','unknown']){
+  await page.goto('http://127.0.0.1:4173/?test=1&tab='+tab);
+  await page.waitForFunction(()=>document.querySelector('#expandCanvas'));
+  assert.equal(await page.evaluate(()=>Atelier.state.viewMode),tab==='3d'?'3d':'plan');
+  if(tab!=='3d')assert.equal(await page.evaluate(()=>Atelier.state.workspace||'architecture'),tab==='unknown'?'architecture':tab);
+  else assert.equal(await page.evaluate(()=>Atelier.state.project.camera.allFloors),true);
+  assert.equal(await page.locator('#projectName').isDisabled(),false);
+  assert.equal(await page.locator('.topbar').evaluate(el=>el.inert),false);
+ }
+ console.log('PASS editable URL workspace selection and unknown-tab fallback');
  // Serve a real exported project from the app fixture via an intercepted same-origin request.
  await page.goto('http://127.0.0.1:4173/?test=1');
  const fixture=await page.evaluate(()=>window.Atelier.state.project);
  fixture.name='Shared viewer fixture';
- fixture.floors.push({id:'viewer-upper',name:'Viewer upper floor',elevation:300,rooms:[],walls:[],items:[],dimensions:[],columns:[],beams:[]});
+ fixture.floors.push({id:'viewer-upper',name:'Viewer upper floor',elevation:300,rooms:[{id:'viewer-upper-room',type:'room',name:'Upper room',x:0,y:0,w:500,d:400,ceilingHeight:280,color:'#eee7d9',floorMaterial:'Wood'}],walls:[],items:[{...fixture.floors[0].items[0],id:'viewer-upper-bed'}],dimensions:[],columns:[],beams:[]});
  await page.route('**/layouts/shared.json',route=>route.fulfill({json:fixture}));
  await page.evaluate(()=>localStorage.setItem('atelier-plan-test-project',JSON.stringify({sentinel:true})));
  await page.goto('http://127.0.0.1:4173/?test=1&readonly=1');
@@ -24,10 +34,19 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  console.log('PASS bare readonly URL and custom controls');
  for(const width of [1440,820,390]){
  await page.setViewportSize({width,height:900});
- await page.goto('http://127.0.0.1:4173/?test=1&readonly=1&layout=layouts/shared.json');
+ await page.goto('http://127.0.0.1:4173/?test=1&readonly=1&tab=3d&layout=layouts/shared.json');
  await page.waitForFunction(()=>document.querySelector('#saveState')?.textContent.includes('Read-only'));
  assert.equal(await page.evaluate(()=>Atelier.state.project.name),'Shared viewer fixture');
  assert.equal(await page.locator('#projectName').isDisabled(),true);
+ assert.equal(await page.evaluate(()=>Atelier.state.viewMode),'3d');
+ assert.equal(await page.evaluate(()=>Atelier.state.project.camera.allFloors),true);
+ assert.equal(await page.locator('.topbar').evaluate(el=>el.inert),true);
+ assert.equal(await page.locator('#catalogPanel').evaluate(el=>el.inert),true);
+ assert.equal(await page.locator('#inspectorPanel').evaluate(el=>el.inert),true);
+ assert.equal(await page.locator('#studioAddFloor').isVisible(),false);
+ assert.equal((await page.locator('#threeTransformHint').innerText()).includes('move'),false);
+ await page.screenshot({path:'validation/url-viewer-3d-'+width+'.png'});
+ await page.evaluate(()=>Atelier.setWorkspace('architecture'));
  await page.locator('#studioFloor').focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
  assert.equal(await page.evaluate(()=>Atelier.floor().id),'viewer-upper');
  await page.locator('#studioFloor').selectOption('0');
@@ -52,6 +71,7 @@ const {chromium}=require('C:/Users/ranje/.cache/codex-runtimes/codex-primary-run
  }
  await page.evaluate(()=>Atelier.select(Atelier.floor().items[0].id));
  await page.waitForFunction(()=>document.querySelector('#aspectToggle')?.getAttribute('aria-disabled')==='true');
+ assert.equal(await page.locator('#inspectorPanel').evaluate(el=>el.inert),true);
  await checkCustomControls(page);
  await page.evaluate(()=>Atelier.select(null));
  await page.screenshot({path:'validation/read-only-'+width+'.png'});

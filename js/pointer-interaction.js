@@ -208,6 +208,8 @@
     if(s.pointerBackup)A.cancelInteraction();
     if(document.querySelector('#serviceRouteBar'))A.stopServiceRoute?.();s.routeEditing=null;
     if(next==='3d'&&!window.atelier3D){A.showToast('3D is unavailable in this browser. Plan editing remains available.');return;}
+    if(next==='3d'&&s.viewMode!=='3d')s.project.camera.allFloors=true;
+    A.syncFloorViewMode?.();
     if(next!=='3d')window.atelier3D?.setWalk?.(false);
     s.viewMode=next;s.canvas.dataset.view=next;s.canvas.style.display=next==='3d'?'none':'block';A.$('#threeStage').style.display=next==='3d'?'block':'none';window.atelier3D?.setVisible(next==='3d');A.$$('.view-switch button').forEach(b=>b.classList.toggle('active',b.dataset.view===next));
     A.$$('.tool[data-tool="room"],.tool[data-tool="wall"],.tool[data-tool="roof"],.tool[data-tool="dimension"]').forEach(b=>b.disabled=next==='3d');

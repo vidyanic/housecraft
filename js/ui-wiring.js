@@ -114,11 +114,17 @@
   function updateCounts() { const n=A.allEntities().length;A.$('#objectCount').textContent=`${n} object${n===1?'':'s'}`; }
 
   // ── Full UI sync ─────────────────────────────────────────────
+  function syncFloorViewMode(){
+    const button=A.$('#floorViewMode');if(!button)return;
+    button.setAttribute('aria-pressed',String(!!S().project.camera.allFloors));
+    button.title=S().project.camera.allFloors?'Show active floor in 3D':'Show all floors in 3D';
+    button.setAttribute('aria-label',button.title);
+  }
   function syncUI() {
     A.updateModelRelationships();
     const project=S().project;
     A.$('#projectName').value=project.name;
-    if(A.$('#floorViewMode')){const button=A.$('#floorViewMode');button.setAttribute('aria-pressed',String(!!project.camera.allFloors));button.title=project.camera.allFloors?'Show active floor in 3D':'Show all floors in 3D';button.setAttribute('aria-label',button.title);}
+    syncFloorViewMode();
     A.$('#compass').style.setProperty('--north',`${project.north||0}deg`);
     A.updateGridLegend();renderFloors();A.renderInspector();updateCounts();updateZoom();A.draw();
     if(A.$('#floorModal').classList.contains('show'))renderFloorManager();
@@ -540,7 +546,7 @@
   Object.assign(A, {
     resizeCanvas, syncUnitPresentation, updateZoom, fitPlan,
     zoomIn, zoomOut, undo, redo,
-    openFloorModal, moveFloorLevel, deleteFloor, renderFloors, updateCounts, syncUI,
+    openFloorModal, moveFloorLevel, deleteFloor, renderFloors, updateCounts, syncUI, syncFloorViewMode,
     setMobileTab, toggleDesktopPanel, initUI
   });
 })();

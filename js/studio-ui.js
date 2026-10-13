@@ -114,8 +114,8 @@
       for(const [type,label] of [['cold-water-pipe','Water pipe'],['waste-pipe','Drain'],['electrical-wire','Wiring']]){const spec=A.CATALOG.find(o=>o.type===type);if(spec)commands.append(commandButton(label,()=>A.addObjectToPlan(type),'i-dimension'));}
       const o=A.findEntity(A.state.selected);if(o&&A.isServiceRoute(o))commands.append(commandButton('Draw route',()=>A.startServiceRoute(o),'i-dimension'));
     }else{
-      for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']])commands.append(commandButton(label,()=>A.setCameraPreset(preset),'i-cube'));
-      for(const [mode,label,hint] of [['orbit','Orbit','Drag to orbit · Shift-drag an object to move'],['move','Move objects','Drag an unlocked object to move · Escape cancels'],['rotate','Rotate objects','Drag horizontally to rotate · Shift snaps to 15° · Escape cancels'],['scale','Scale objects','Drag horizontally for uniform scale · Escape cancels']]){const button=commandButton(label,()=>{window.atelier3D?.setManipulationMode(mode);A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext('3d');A.showHint(hint);});button.setAttribute('aria-pressed',String((A.state.transform3DMode||'orbit')===mode));button.disabled=mode!=='orbit'&&!!A.state.project.camera.allFloors;commands.append(button);}
+      for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']]){const button=commandButton(label,()=>A.setCameraPreset(preset),'i-cube');button.dataset.viewerNavigation='true';commands.append(button);}
+      for(const [mode,label,hint] of [['orbit','Orbit','Drag to orbit · Shift-drag an object to move'],['move','Move objects','Drag an unlocked object to move · Escape cancels'],['rotate','Rotate objects','Drag horizontally to rotate · Shift snaps to 15° · Escape cancels'],['scale','Scale objects','Drag horizontally for uniform scale · Escape cancels']]){const button=commandButton(label,()=>{window.atelier3D?.setManipulationMode(mode);A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext('3d');A.showHint(hint);});if(mode==='orbit')button.dataset.viewerNavigation='true';button.setAttribute('aria-pressed',String((A.state.transform3DMode||'orbit')===mode));button.disabled=mode!=='orbit'&&!!A.state.project.camera.allFloors;commands.append(button);}
     }
   }
   function dialog(id,title,content){
@@ -167,7 +167,7 @@
     $('#mobNavHelp').querySelector('span').textContent='Objects';$('#mobNavHelp').querySelector('use').setAttribute('href','#i-search');$('#mobNavHelp').onclick=()=>showLibrary('objects');
     $('#mobNavFloors').hidden=true;$('#chipEditBtn').onclick=openProperties;
     $('#studioFloor').onchange=e=>{const p=A.state.project;p.activeFloor=Number(e.target.value);A.state.selected=null;A.state.selectedIds.clear();A.state.inspectorMode=null;A.syncUI();A.fitPlan();A.queueSave();};$('#studioAddFloor').onclick=A.openFloorModal;
-    const oldSelect=A.select;A.select=id=>{A.state.inspectorMode=null;oldSelect(id);if(!medium()&&id)showPanel('inspector');prepareInspector();};
+    const oldSelect=A.select;A.select=id=>{A.state.inspectorMode=null;oldSelect(id);if(!A.readOnly&&!medium()&&id)showPanel('inspector');prepareInspector();};
     const oldStructuralSelect=A.selectStructural;A.selectStructural=id=>{A.state.inspectorMode=null;oldStructuralSelect(id);prepareInspector();};
     const oldInspector=A.renderInspector;A.renderInspector=()=>{oldInspector();prepareInspector();};
     const oldDraw=A.draw;A.draw=()=>{oldDraw();if(!(A.state.pointerBackup&&(A.state.interaction?.activated||A.state.nudgeActive)))syncShell();};

@@ -24,6 +24,10 @@
     A.initStructuralWorkspace?.();
     A.initStudioUI?.();
     A.initCanvasSpace?.();
+    const params=new URLSearchParams(location.search);
+    const tab=params.get('tab')||params.get('view');
+    if(tab==='3d')A.setView('3d');
+    else if(['architecture','structure','services'].includes(tab))A.setWorkspace(tab);
     A.initReadOnly?.();
   }
 

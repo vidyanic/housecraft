@@ -1568,7 +1568,8 @@
   let moveMode=false;
   let transformMode='move',manipulationHelper=null;
   const transformHint=stage.querySelector('.render-badge');transformHint.id='threeTransformHint';
-  function clearManipulationHelper(){if(manipulationHelper){disposeNode(manipulationHelper);manipulationHelper=null;}transformHint.textContent='Drag to orbit · Shift-drag an object to move';transformHint.style.display='block';}
+  if(window.Atelier?.readOnly)transformHint.textContent='Drag to orbit · Scroll or pinch to zoom';
+  function clearManipulationHelper(){if(manipulationHelper){disposeNode(manipulationHelper);manipulationHelper=null;}transformHint.textContent=window.Atelier?.readOnly?'Drag to orbit · Scroll or pinch to zoom':'Drag to orbit · Shift-drag an object to move';transformHint.style.display='block';}
   function refreshManipulationHelper(entity){
     clearManipulationHelper();if(!moveMode)return;entity||=window.atelierBridge?.findEntity(window.atelierBridge.selected);
     transformHint.style.display='block';transformHint.textContent=transformMode==='rotate'?'Rotate · drag horizontally · Shift snaps to 15°':transformMode==='scale'?'Uniform scale · drag right to enlarge, left to shrink':'Move · drag an object on its floor';
