@@ -3,6 +3,7 @@
   'use strict';
   const A=window.Atelier, $=A.$, esc=A.escapeHtml;
   let initialized=false, inspectorKey='', inspectorSelection='', activeSheet='', treeSignature='', contextKey='';
+  let structureCopyDialog=null;
   const create=(tag,cls,html='')=>{const el=document.createElement(tag);el.className=cls;el.innerHTML=html;return el;};
   const button=(label,id,icon)=>`<button class="button" id="${id}">${icon?A.icon(icon):''}<span>${label}</span></button>`;
   const medium=()=>innerWidth<1200;
@@ -79,7 +80,8 @@
     $('#tabBtnInspector').classList.toggle('active',!ws.classList.contains('hide-inspector')&&(!medium()||panel==='inspector'));
     $('#tabBtnCatalog').setAttribute('aria-pressed',String($('#tabBtnCatalog').classList.contains('active')));
     $('#tabBtnInspector').setAttribute('aria-pressed',String($('#tabBtnInspector').classList.contains('active')));
-    const k=[discipline,s.selected,!!s.structuralReport,s.tool,!!s.multiSelect,s.transform3DMode,A.structuralLayers.interior,!!s.wallPlotGuide].join(':');
+    const structureButton=$('#structureBtn');if(structureButton){const shown=s.structureOnly3D||s.project.showStructure!==false;structureButton.classList.toggle('active',shown);structureButton.setAttribute('aria-pressed',String(shown));structureButton.setAttribute('aria-label',shown?'Hide structure':'Show structure');structureButton.title=shown?'Hide structure':'Show structure';}
+    const k=[discipline,s.selected,!!s.structuralReport,s.tool,!!s.multiSelect,s.transform3DMode,A.structuralLayers.interior,!!s.wallPlotGuide,!!s.structureOnly3D,s.project.showStructure!==false].join(':');
     if(k!==contextKey){contextKey=k;renderContext(discipline);}
     const select=$('#studioFloor');const signature=s.project.floors.map(f=>f.id+f.name).join('|');
     if(select.dataset.signature!==signature){select.innerHTML=s.project.floors.map((f,i)=>`<option value="${i}">${esc(f.name)}</option>`).join('');select.dataset.signature=signature;}
@@ -99,6 +101,8 @@
       const multi=commandButton(A.state.multiSelect?'Finish selecting':'Select multiple',()=>{A.setTool('select');A.state.multiSelect=!A.state.multiSelect;A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext(discipline);A.showHint(A.state.multiSelect?'Tap objects to add or remove · Finish selecting to move the selection':'Drag selected objects to move');});multi.setAttribute('aria-pressed',String(!!A.state.multiSelect));multi.id='multiSelectObjects';commands.append(multi);commands.append(commandButton('Next overlapping element',A.cycleOverlapSelection));
     }else A.state.multiSelect=false;
     if(discipline==='structure'){
+      const copy=commandButton('Copy structure',openStructureCopy,'i-copy');copy.id='copyCompleteStructure';commands.append(copy);
+      const stack=commandButton('Building stack',A.viewStructuralStack,'i-cube');stack.id='viewStructuralStack';stack.dataset.viewerNavigation='true';commands.append(stack);
       const guides=commandButton('Layout guides',()=>{chooseSheet('model');showPanel('inspector');$('#structGuide')?.scrollIntoView({block:'center'});});guides.id='structLayoutGuides';commands.append(guides);
       const interior=commandButton(A.structuralLayers.interior?'Hide interior':'Show interior',()=>{A.structuralLayers.interior=!A.structuralLayers.interior;A.renderInspector();A.draw();renderContext('structure');});interior.id='structInteriorToggle';interior.setAttribute('aria-pressed',String(A.structuralLayers.interior));commands.append(interior);
       for(const [type,label] of [['slab','Slab'],['structural-wall','RC wall'],['load','Load'],['grid','Grid']]){const button=commandButton(label,()=>A.addStructuralObject(type),'i-grid');button.dataset.structAdd=type;button.draggable=true;button.style.touchAction='none';button.title='Click to add · drag onto the plan';commands.append(button);};
@@ -114,6 +118,7 @@
       for(const [type,label] of [['cold-water-pipe','Water pipe'],['waste-pipe','Drain'],['electrical-wire','Wiring']]){const spec=A.CATALOG.find(o=>o.type===type);if(spec)commands.append(commandButton(label,()=>A.addObjectToPlan(type),'i-dimension'));}
       const o=A.findEntity(A.state.selected);if(o&&A.isServiceRoute(o))commands.append(commandButton('Draw route',()=>A.startServiceRoute(o),'i-dimension'));
     }else{
+      const structure=commandButton(A.state.structureOnly3D?'Show whole building':'Structure only',()=>{A.state.structureOnly3D=!A.state.structureOnly3D;window.atelier3D?.requestRebuild();A.draw();renderContext('3d');});structure.id='structureOnly3D';structure.dataset.viewerNavigation='true';structure.setAttribute('aria-pressed',String(!!A.state.structureOnly3D));commands.append(structure);
       for(const [preset,label] of [['dollhouse','Dollhouse'],['top','Top'],['front','Front']]){const button=commandButton(label,()=>A.setCameraPreset(preset),'i-cube');button.dataset.viewerNavigation='true';commands.append(button);}
       for(const [mode,label,hint] of [['orbit','Orbit','Drag to orbit · Shift-drag an object to move'],['move','Move objects','Drag an unlocked object to move · Escape cancels'],['rotate','Rotate objects','Drag horizontally to rotate · Shift snaps to 15° · Escape cancels'],['scale','Scale objects','Drag horizontally for uniform scale · Escape cancels']]){const button=commandButton(label,()=>{window.atelier3D?.setManipulationMode(mode);A.setMobileTab('stage');A.canvasSpace?.revealCanvas();renderContext('3d');A.showHint(hint);});if(mode==='orbit')button.dataset.viewerNavigation='true';button.setAttribute('aria-pressed',String((A.state.transform3DMode||'orbit')===mode));button.disabled=mode!=='orbit'&&!!A.state.project.camera.allFloors;commands.append(button);}
     }
@@ -126,6 +131,32 @@
     backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
     backdrop.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}if(e.key==='Tab'){const els=[...backdrop.querySelectorAll('button,input,select')].filter(el=>!el.disabled&&el.getClientRects().length),first=els[0],last=els.at(-1);if(e.shiftKey&&document.activeElement===first){last.focus();e.preventDefault();}else if(!e.shiftKey&&document.activeElement===last){first.focus();e.preventDefault();}}});
     return {el:backdrop,open(){opener=document.activeElement;if(opener===document.body||!opener?.getClientRects().length)opener=$('#mobileMenuBtn');backdrop.classList.add('show');backdrop.querySelector('input,select,button')?.focus();},close};
+  }
+  function openStructureCopy(){
+    if(A.readOnly)return;
+    if(A.state.pointerBackup)A.cancelInteraction();
+    const source=A.floor(),keys=A.structuralCollections,signature=JSON.stringify([source.diaphragm,...keys.map(k=>source[k])]);
+    if(!keys.some(k=>source[k]?.length)){A.showToast('Add structure to the current floor before copying');return;}
+    structureCopyDialog||=dialog('structureCopyModal','Copy complete structure','<div id="structureCopyBody" data-structural-editor></div>');
+    const body=$('#structureCopyBody'),floors=A.state.project.floors.filter(f=>f.id!==source.id),empty=floors.filter(f=>!keys.some(k=>f[k]?.length)),gap=A.structuralBasis(A.state.project).storeyHeight;
+    body.innerHTML=`<p>Copy all structure from <strong>${esc(source.name)}</strong> at the same X/Y position. Each floor gets independent members and beam/column connections.</p><p class="struct-note">${keys.map(k=>`${source[k]?.length||0} ${k==='structuralWalls'?'RC walls':k}`).join(' · ')}</p><fieldset class="structure-copy-targets"><legend>Existing destination floors</legend>${floors.map(f=>{const occupied=keys.some(k=>f[k]?.length);return `<label><input type="checkbox" data-structure-copy-floor="${esc(f.id)}" ${occupied?'disabled':''}> ${esc(f.name)} · ${esc(A.formatLength(f.elevation))}${occupied?' · already has structure':''}</label>`;}).join('')||'<p>No other floors yet. Create new levels below.</p>'}</fieldset><div class="structure-copy-fields"><label>New floors above the highest level<input id="structureCopyLevels" type="number" min="0" max="20" step="1" value="${empty.length?0:1}"></label><label>Floor-to-floor height (${esc(A.unitLabel())})<input id="structureCopyGap" type="text" value="${esc(A.displayValue(gap))}" data-cm="${gap}" data-original="${esc(A.displayValue(gap))}"></label></div><p class="struct-note">Copies columns, beams, slabs, RC walls, point loads, grids and the diaphragm assumption. Existing architecture and roof-level flags stay in place. Member sizes, heights and loads remain as drawn.</p><p id="structureCopySummary" role="status"></p><p id="structureCopyError" class="struct-error" role="alert"></p><div class="struct-actions"><button class="button" id="applyStructureCopy">Copy structure</button><button class="button primary" id="copyStructureAndView">Copy & view building</button></div>`;
+    const issueList=create('div','structure-copy-issues');issueList.id='structureCopyIssues';body.querySelector('.structure-copy-targets').before(issueList);
+    const showIssues=issues=>{
+      issueList.hidden=!issues.length;
+      issueList.innerHTML=issues.length?`<p><strong>${issues.length} broken column connection(s) on ${esc(source.name)}</strong></p><p>Open an affected member below to choose the correct column or explicitly make the connection free.</p>${issues.map((i,index)=>`<section class="structure-copy-issue"><strong>${esc(i.member)} · ${esc(i.label)}</strong><p>${esc(i.message)}</p><div class="struct-actions"><button class="button" data-show-copy-issue="${index}">Show on plan</button><button class="button" data-edit-copy-issue="${index}">Edit connection</button></div></section>`).join('')}`:'';
+      issueList.querySelectorAll('[data-show-copy-issue],[data-edit-copy-issue]').forEach(button=>button.onclick=()=>{const edit=button.dataset.editCopyIssue!=null,index=Number(edit?button.dataset.editCopyIssue:button.dataset.showCopyIssue);structureCopyDialog.close();A.focusStructuralIssue(issues[index],{edit});});
+      $('#applyStructureCopy').disabled=!!issues.length;$('#copyStructureAndView').disabled=!!issues.length;
+    };
+    const refresh=()=>{const n=Number($('#structureCopyLevels').value),selected=body.querySelectorAll('[data-structure-copy-floor]:checked').length,total=selected+(Number.isInteger(n)&&n>0?n:0);$('#structureCopySummary').textContent=`${total} destination floor(s) · copies form one Undo action. Existing structure is protected from overlapping copies.`;};
+    body.oninput=refresh;body.onchange=refresh;refresh();
+    const apply=view=>{
+      try{
+        if(A.floor().id!==source.id||signature!==JSON.stringify([A.floor().diaphragm,...keys.map(k=>A.floor()[k])]))throw Error('Source structure changed. Close and reopen this copy option.');
+        const input=$('#structureCopyGap'),height=input.value===input.dataset.original?Number(input.dataset.cm):A.toCm(input.value);
+        A.copyStructureToFloors({targetIds:[...body.querySelectorAll('[data-structure-copy-floor]:checked')].map(el=>el.dataset.structureCopyFloor),newFloors:Number($('#structureCopyLevels').value),gap:height});structureCopyDialog.close();if(view)A.viewStructuralStack();
+      }catch(error){$('#structureCopyError').textContent=error.message;if(error.structuralIssues)showIssues(error.structuralIssues);}
+    };
+    $('#applyStructureCopy').onclick=()=>apply(false);$('#copyStructureAndView').onclick=()=>apply(true);showIssues(A.structuralReferenceIssues(source));structureCopyDialog.open();
   }
   function initStudioUI(){
     initialized=true;document.body.classList.add('studio');
@@ -213,5 +244,5 @@
       $('#objectGrid').querySelectorAll('.cat-group-head').forEach(el=>{el.hidden=![...el.nextElementSibling.children].some(card=>!card.hidden);});
     }
   }
-  Object.assign(A,{initStudioUI,openProjectSettings});
+  Object.assign(A,{initStudioUI,openProjectSettings,openStructureCopy});
 })();

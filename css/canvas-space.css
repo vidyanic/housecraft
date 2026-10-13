@@ -1,7 +1,7 @@
 /* Aligned editor shell. Explicit collapse changes layout; hover never does. */
-body.studio.canvas-space .app{--rail:64px;--library:280px;--properties:280px;--project-height:54px;--nav-height:48px;grid-template-rows:var(--project-height) var(--nav-height) minmax(0,1fr);position:relative}
+body.studio.canvas-space .app{--rail:64px;--library:280px;--properties:280px;--project-height:54px;--nav-height:48px;--reveal-height:28px;grid-template-rows:var(--project-height) var(--nav-height) minmax(0,1fr);position:relative}
 body.studio.canvas-space .app[data-project-visible="false"]{--project-height:0px}
-body.studio.canvas-space .app[data-navigation-visible="false"]{--nav-height:0px}
+body.studio.canvas-space .app[data-navigation-visible="false"]{--nav-height:var(--reveal-height)}
 body.studio.canvas-space .app[data-catalog-visible="false"]{--library:0px}
 body.studio.canvas-space .app[data-inspector-visible="false"]{--properties:0px}
 body.studio.canvas-space .topbar{grid-row:1;position:relative;height:54px;padding:0 16px;gap:12px;visibility:hidden;pointer-events:none;background:#fff;border-bottom:1px solid #dce3e9;z-index:50;box-shadow:none}
@@ -18,7 +18,8 @@ body.studio.canvas-space .level-picker select{width:134px;height:34px;background
 body.studio.canvas-space .studio-floor-display select{width:124px}
 body.studio.canvas-space .canvas-actions{display:flex;gap:4px;position:static}
 body.studio.canvas-space .canvas-actions button{height:34px;width:34px;min-width:34px;border:1px solid #dce3e9;border-radius:5px;background:white;color:#526778}
-body.studio.canvas-space #structureBtn{display:none!important}
+body.studio.canvas-space:not([data-studio-view="3d"]) #structureBtn{display:none!important}
+body.studio.canvas-space[data-studio-view="3d"] #structureBtn{display:inline-flex!important}
 body.studio.canvas-space[data-studio-view="3d"] #gridBtn{display:none}
 body.studio.canvas-space .chrome-hide{color:#7e8c99;background:transparent;border:0;flex-shrink:0}
 body.studio.canvas-space #workspace{grid-row:3;display:block;position:relative;overflow:hidden;min-height:0}
@@ -74,7 +75,7 @@ body.studio.canvas-space .hint{bottom:62px;left:14px;max-width:calc(100% - 70px)
 body.studio.canvas-space[data-studio-view="3d"] .hint{display:none}
 body.studio.canvas-space #threeTransformHint{bottom:112px;left:14px;right:auto;max-width:calc(100% - 28px);white-space:normal;pointer-events:none}
 body.studio.canvas-space .compass{bottom:64px;right:14px;width:32px;height:32px}
-body.studio.canvas-space.canvas-focus .app{--library:0px;--properties:0px;--project-height:0px;--nav-height:0px}
+body.studio.canvas-space.canvas-focus .app{--library:0px;--properties:0px;--project-height:0px;--nav-height:var(--reveal-height)}
 body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .grid-legend,body.studio.canvas-space.canvas-focus .compass{visibility:hidden}
 body.studio.canvas-space .app[data-project-visible="false"] .topbar.space-open{position:absolute;top:0;left:0;right:0;box-shadow:0 6px 24px #1b304726}
 body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-navigation.space-open{position:absolute;top:var(--project-height);left:0;right:0;box-shadow:0 6px 24px #1b304726}
@@ -159,3 +160,18 @@ body.studio.canvas-space.read-only #reveal-project,body.studio.canvas-space.read
   #floorModal .floor-manager-fields { grid-template-columns: 1fr; }
   #floorModal .floor-manager-row button { min-height: 44px; }
 }
+/* Complete structural floor copies use the studio's focus-managed modal. */
+.structure-copy-targets{display:grid;gap:8px;border:1px solid #cad8dc;border-radius:6px;padding:12px;margin:12px 0;max-height:180px;overflow:auto}
+.structure-copy-targets label{display:flex;align-items:center;gap:8px;min-height:38px;font-size:13px}
+.structure-copy-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.structure-copy-fields label{display:grid;gap:6px;font-size:13px}
+.structure-copy-fields input{width:100%;min-height:44px;box-sizing:border-box;border:1px solid #b9c8c9;border-radius:5px;padding:8px}
+#structureCopyBody>p{font-size:13px;line-height:1.6}
+@media(max-width:600px){.structure-copy-fields{grid-template-columns:1fr}.structure-copy-targets label{min-height:44px}}
+.structure-copy-issues{padding:12px;border:1px solid #d18b7b;border-radius:6px;background:#fff4f0;font-size:13px;line-height:1.5;margin:12px 0;overflow-wrap:anywhere}
+.structure-copy-issue{border-top:1px solid #e8c8bf;padding:12px 0 4px}
+.structure-copy-issue p{margin:7px 0}
+.struct-reference-notice{padding:10px;border:1px solid #d18b7b;border-radius:6px;background:#fff4f0;color:#922a23;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.struct-reference-invalid{border:2px solid #bd362e!important;background:#fff4f0!important}
+
+@media(max-width:699px){body.studio.canvas-space .app{--reveal-height:44px}}

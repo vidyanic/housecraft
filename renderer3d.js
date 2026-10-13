@@ -1416,10 +1416,12 @@
       record.group.position.y=cm(elevation);
       if(transformOnly){const node=record.group.children[0];if(node){const x=cm(data.x+data.w/2),z=cm(data.y+data.d/2),y=cm(data.elevation||0),rotation=-(data.rotation||0)*Math.PI/180;if(node.position.x!==x||node.position.y!==y||node.position.z!==z||node.rotation.y!==rotation||node.scale.x!==1){renderStats.transformUpdates++;geometryChanged=true;}node.position.set(x,y,z);node.rotation.y=rotation;node.scale.set(1,1,1);}}
     }
+    const structureOnly=!!window.Atelier.state.structureOnly3D;
     const floors=projectData.camera.allFloors?projectData.floors:[floorData];
     floors.forEach(f=>{
       const prefix=f.id+':',elevation=f.elevation||0;
       const connections=window.Atelier.stairConnections?.(f,projectData)||[],stairOpenings=connections.map(c=>c.opening);
+      if(!structureOnly){
       f.rooms.forEach(room=>{const data={...room,stairOpenings};upsert(prefix+'room:'+room.id,data,g=>roomFloor(g,data),elevation);});
       for(const c of connections.filter(()=>!projectData.camera.allFloors))upsert(prefix+'stair-arrival:'+c.o.id,{platform:c.platform,mismatch:c.mismatch},g=>{const shape=new THREE.Shape();c.platform.forEach((p,i)=>i?shape.lineTo(cm(p.x),-cm(p.y)):shape.moveTo(cm(p.x),-cm(p.y)));shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:.08,bevelEnabled:false});geo.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geo,pbr({material:'Concrete',color:c.mismatch?'#bd5544':'#b8cfde'}));mesh.position.y=-.08;mesh.receiveShadow=true;g.add(mesh);},elevation);
       upsert(prefix+'walls',{walls:f.walls,openings:f.items.filter(o=>['door','window'].includes(o.shape)),mode:projectData.camera.wallMode},g=>buildWalls(g,f,projectData.camera.wallMode||'cutaway'),elevation);
@@ -1427,10 +1429,13 @@
         const hiddenRoof=(item.shape||item.type)==='roof'&&projectData.camera.roofMode==='hidden';
         const skipStairEntrance=item.shape==='three-side-stairs'&&connections.some(c=>Math.abs(c.o.x-item.x)<.1&&Math.abs(c.o.y-item.y)<.1&&Math.abs(c.o.w-item.w)<.1&&Math.abs(c.o.d-item.d)<.1);upsert(prefix+'item:'+item.id,{...item,hiddenRoof,skipStairEntrance},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject({...item,skipStairEntrance})),elevation,true);
       });
-      if(projectData.showStructure!==false){
-        (f.structuralWalls||[]).forEach(wall=>upsert(prefix+'rc-wall:'+wall.id,wall,g=>buildWalls(g,{...f,walls:[wall],items:[]},projectData.camera.wallMode||'cutaway'),elevation));
+      }
+      if(structureOnly||projectData.showStructure!==false){
+        (f.structuralWalls||[]).forEach(wall=>upsert(prefix+'rc-wall:'+wall.id,{...wall,displayMode:structureOnly?'full':projectData.camera.wallMode},g=>buildWalls(g,{...f,walls:[wall],items:[]},structureOnly?'full':projectData.camera.wallMode||'cutaway'),elevation));
         (f.slabs||[]).forEach(slab=>upsert(prefix+'structural-slab:'+slab.id,slab,g=>{
-          const material=pbr({material:'Concrete',color:'#a4b5bb'}),shape=new THREE.Shape();window.Atelier.structuralPolygon(slab).forEach((q,i)=>i?shape.lineTo(cm(q.x),-cm(q.y)):shape.moveTo(cm(q.x),-cm(q.y)));shape.closePath();const geometry=new THREE.ExtrudeGeometry(shape,{depth:cm(slab.thickness||15),bevelEnabled:false});geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material);mesh.position.y=cm(window.Atelier.structuralBasis(projectData).storeyHeight-(slab.thickness||15));mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.entityId=slab.id;g.add(mesh);
+          const material=pbr({material:'Concrete',color:'#a4b5bb'});
+          // Shared slab/beam top faces otherwise flicker when floors are stacked.
+          material.polygonOffset=true;material.polygonOffsetFactor=2;material.polygonOffsetUnits=2;const shape=new THREE.Shape();window.Atelier.structuralPolygon(slab).forEach((q,i)=>i?shape.lineTo(cm(q.x),-cm(q.y)):shape.moveTo(cm(q.x),-cm(q.y)));shape.closePath();const geometry=new THREE.ExtrudeGeometry(shape,{depth:cm(slab.thickness||15),bevelEnabled:false});geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material);mesh.position.y=cm(window.Atelier.structuralBasis(projectData).storeyHeight-(slab.thickness||15));mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.entityId=slab.id;g.add(mesh);
         },elevation));
         (f.columns||[]).forEach(col=>upsert(prefix+'column:'+col.id,col,g=>g.add(buildColumn3D(col)),elevation));
         (f.beams||[]).forEach(beam=>upsert(prefix+'beam:'+beam.id,beam,g=>{const node=buildBeam3D(beam);if(node)g.add(node);},elevation));
@@ -1475,8 +1480,9 @@
     if (!state) return;
     const theta = (Number.isFinite(Number(state.yaw))?Number(state.yaw):-38) * Math.PI / 180;
     const phi = (90 - Math.max(12, Math.min(80, Number(state.pitch) || 34))) * Math.PI / 180;
-    const zoom = Math.max(.18, Number(state.zoom) || .56);
+    const zoom = Math.max(.000001, Number(state.zoom) || .56);
     const distance = 11 / zoom;
+    controls.maxDistance=Math.max(70,distance*1.2);
     camera.position.set(
       controls.target.x + Math.sin(phi) * Math.sin(theta) * distance,
       controls.target.y + Math.cos(phi) * distance,
@@ -1488,16 +1494,21 @@
   }
 
   function fitCamera(state) {
+    if(walk.active)setWalk(false);
+    resize();
     rebuild();
     const box=new THREE.Box3().setFromObject(design);
     if(box.isEmpty())return state.zoom;
-    box.getCenter(controls.target);
     const radius=box.getSize(new THREE.Vector3()).length()/2;
     const vertical=camera.fov*Math.PI/360;
     const horizontal=Math.atan(Math.tan(vertical)*camera.aspect);
     const distance=Math.max(.1,radius*1.12/Math.sin(Math.min(vertical,horizontal)));
+    const damping=controls.enableDamping;controls.enableDamping=false;controls.update();
+    box.getCenter(controls.target);
     state.zoom=Math.min(.9,11/distance);
+    camera.far=Math.max(180,distance+radius*3);camera.updateProjectionMatrix();
     setCamera(state);
+    controls.enableDamping=damping;
     return state.zoom;
   }
 
@@ -1518,7 +1529,7 @@
       const delta=camera.position.clone().sub(controls.target);
       delta.setLength(Math.max(controls.minDistance,Math.min(controls.maxDistance,delta.length()*factor)));
       camera.position.copy(controls.target).add(delta);
-      const project=window.atelierBridge?.project;if(project){project.camera.zoom=Math.max(.18,Math.min(1.4,11/delta.length()));window.atelierBridge.updateCameraUI?.();}
+      const project=window.atelierBridge?.project;if(project){project.camera.zoom=Math.max(.000001,Math.min(1.4,11/delta.length()));window.atelierBridge.updateCameraUI?.();}
     }
     updateOrbitFog();
     wakeRenderLoop(2);
@@ -1554,7 +1565,7 @@
     const pitch = 90 - Math.acos(Math.max(-1, Math.min(1, delta.y / radius))) * 180 / Math.PI;
     const yaw = Math.atan2(delta.x, delta.z) * 180 / Math.PI;
     const state = window.atelierBridge.project.camera;
-    state.yaw = yaw; state.pitch = pitch; state.zoom = Math.max(.18, Math.min(1.4, 11 / radius));
+    state.yaw = yaw; state.pitch = pitch; state.zoom = Math.max(.000001, Math.min(1.4, 11 / radius));
     window.atelierBridge.updateCameraUI();
   });
   controls.addEventListener('end', () => {
@@ -1945,6 +1956,6 @@
     }
   });
 
-  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries}) };
+  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries,cameraDistance:camera.position.distanceTo(controls.target),cameraTarget:controls.target.toArray()}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();

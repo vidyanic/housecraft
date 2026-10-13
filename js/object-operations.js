@@ -60,6 +60,52 @@
   }
 
   // ── Clipboard ────────────────────────────────────────────────
+  const structuralCollections=['columns','beams','slabs','structuralWalls','loads','grids'];
+  function structuralReferenceIssues(floor=A.floor(),project=S().project,entities=null){
+    const columns=new Set((floor.columns||[]).map(c=>c.id)),issues=[];
+    const labels={startColumnId:'Start joint',endColumnId:'End joint',columnId:'Assigned column'};
+    for(const o of entities||structuralCollections.flatMap(k=>floor[k]||[]))for(const [field,label] of Object.entries(labels)){
+      const referenceId=o[field];if(!referenceId||columns.has(referenceId))continue;
+      const other=(project.floors||[]).find(f=>f.id!==floor.id&&(f.columns||[]).some(c=>c.id===referenceId));
+      const wrongType=structuralCollections.some(k=>k!=='columns'&&(floor[k]||[]).some(e=>e.id===referenceId));
+      const member=o.tag||o.name||o.id,reason=other?`column belongs to ${other.name}, not ${floor.name}`:wrongType?'reference points to a non-column object':'column is missing or was deleted';
+      issues.push({floorId:floor.id,entityId:o.id,field,label,referenceId,member,message:`${member} · ${label}: ${reason} (${referenceId}).`,guidance:`Choose an existing column in ${label}, or explicitly choose Unconnected if this connection should be free.`});
+    }
+    return issues;
+  }
+  function copyStructureToFloors({targetIds=[],newFloors=0,gap=300}={}){
+    if(A.readOnly)throw Error('This layout is read-only.');
+    if(S().pointerBackup)A.cancelInteraction();
+    const p=S().project,source=A.floor();
+    if(!Array.isArray(targetIds)||!Number.isInteger(newFloors)||newFloors<0||newFloors>20)throw Error('Choose destination floors and 0–20 new levels.');
+    if(!structuralCollections.some(k=>source[k]?.length))throw Error('The current floor has no structure to copy.');
+    const issues=structuralReferenceIssues(source,p);
+    if(issues.length){const error=Error(`Cannot copy structure: ${issues.length} broken column connection(s). ${issues[0].message}`);error.structuralIssues=issues;throw error;}
+    const targets=[...new Set(targetIds)];
+    if(!targets.length&&!newFloors)throw Error('Choose a destination or add new levels.');
+    for(const id of targets){const f=p.floors.find(f=>f.id===id);if(!f||f===source)throw Error('Choose a different existing destination floor.');if(structuralCollections.some(k=>f[k]?.length))throw Error(f.name+' already contains structure. Choose an empty structural floor.');}
+    if(newFloors&&(!Number.isFinite(gap)||gap<=0))throw Error('Enter a positive floor-to-floor height.');
+    if(p.floors.length+newFloors>100)throw Error('A project can contain at most 100 floors.');
+    const candidate=A.deep(p),top=Math.max(...p.floors.map(f=>f.elevation));
+    for(let i=1;i<=newFloors;i++){
+      const elevation=top+i*gap;if(!Number.isFinite(elevation)||candidate.floors.some(f=>Math.abs(f.elevation-elevation)<.01))throw Error('New levels must have distinct finite elevations.');
+      let number=p.floors.length+i,name='Floor '+number;while(candidate.floors.some(f=>f.name===name))name='Floor '+(++number);
+      const f={id:A.uid(),name,elevation,rooms:[],walls:[],items:[],dimensions:[],isRoof:false};candidate.floors.push(f);targets.push(f.id);
+    }
+    const count=structuralCollections.reduce((n,k)=>n+(source[k]?.length||0),0);
+    for(const id of targets){
+      const destination=candidate.floors.find(f=>f.id===id),remap=new Map(structuralCollections.flatMap(k=>(source[k]||[]).map(o=>[o.id,A.uid()])));
+      for(const key of structuralCollections)destination[key]=(source[key]||[]).map(o=>{
+        const copy=A.deep(o);copy.id=remap.get(o.id);
+        for(const ref of ['startColumnId','endColumnId','columnId'])if(copy[ref])copy[ref]=remap.get(copy[ref]);
+        return copy;
+      });
+      destination.diaphragm=source.diaphragm||'none';
+    }
+    A.normalizeStructure(candidate);A.validateProject(candidate);A.checkpoint();S().project=candidate;S().structuralProposal=null;
+    window.atelier3D?.requestRebuild();A.syncUI();A.queueSave();A.showToast(`Complete structure copied to ${targets.length} floor(s) at the same plan position`);
+    return {targetIds:targets,count:count*targets.length};
+  }
   function copySelectionToFloor(targetId){
     if(S().pointerBackup)A.cancelInteraction();
     const source=A.floor(),target=S().project.floors.find(f=>f.id===targetId),selected=selectedEntitiesForClipboard();
@@ -218,7 +264,7 @@
 
   Object.assign(A, {
     entityCollection, deleteSelected, nudgeEntity, rotateWall90,
-    selectedEntitiesForClipboard, copySelected, copySelectionToFloor, createCopies, pasteClipboard, duplicateSelected,
+    selectedEntitiesForClipboard, copySelected, copySelectionToFloor, copyStructureToFloors, structuralCollections, structuralReferenceIssues, createCopies, pasteClipboard, duplicateSelected,
     rotateSelected, scaleSelected, moveSelectedDistance, alignSelectedToWall, alignSelection, distributeSelection,
     bringToFront, sendToBack, setupContextMenu
   });

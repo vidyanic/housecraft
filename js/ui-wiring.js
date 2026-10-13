@@ -37,15 +37,16 @@
   }
 
   function fitPlan() {
-    const s=S(),bounds=A.planBounds(),stage=s.stage,r=stage.getBoundingClientRect(),pad=75;
+    const s=S();
     if(s.viewMode==='3d'){window.atelier3D?.fitCamera(s.project.camera);updateZoom();return}
+    const bounds=A.planBounds(),stage=s.stage,r=stage.getBoundingClientRect(),pad=75;
     s.scale=Math.max(.18,Math.min(1.2,Math.min((r.width-pad*2)/(bounds.maxX-bounds.minX||1),(r.height-pad*2)/(bounds.maxY-bounds.minY||1))));
     s.offset={x:(r.width-(bounds.maxX-bounds.minX)*s.scale)/2-bounds.minX*s.scale,y:(r.height-(bounds.maxY-bounds.minY)*s.scale)/2-bounds.minY*s.scale};
     updateZoom();A.draw();
   }
 
   function zoomIn() { const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.min(1.4,s.project.camera.zoom*1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.min(1.8,s.scale*1.15);updateZoom();A.draw(); }
-  function zoomOut(){ const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.max(.18,s.project.camera.zoom/1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.max(.18,s.scale/1.15);updateZoom();A.draw(); }
+  function zoomOut(){ const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.max(.000001,s.project.camera.zoom/1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.max(.18,s.scale/1.15);updateZoom();A.draw(); }
 
   // ── Undo / redo ──────────────────────────────────────────────
   function undo() { const s=S();if(s.pointerBackup)A.cancelInteraction();if(!s.history.length)return;s.future.push(JSON.stringify(s.project));s.project=JSON.parse(s.history.pop());s.selected=null;s.selectedIds.clear();syncUI();A.queueSave(); }
@@ -426,12 +427,14 @@
     if(structBtn){
       structBtn.classList.toggle('active',s.project.showStructure!==false);
       structBtn.onclick=()=>{
-        A.checkpoint();
+        s.structureOnly3D=false;
         s.project.showStructure = !(s.project.showStructure !== false);
         structBtn.classList.toggle('active', s.project.showStructure);
+        structBtn.setAttribute('aria-pressed',String(s.project.showStructure));
+        structBtn.setAttribute('aria-label',s.project.showStructure?'Hide structure':'Show structure');
         A.draw();
         if(s.viewMode==='3d') window.atelier3D?.requestRebuild();
-        A.queueSave();
+        A.syncUI();A.queueSave();
         A.showToast(s.project.showStructure ? 'Structure visible' : 'Structure hidden');
       };
     }
