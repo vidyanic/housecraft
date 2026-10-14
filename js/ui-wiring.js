@@ -199,13 +199,17 @@
           A.checkpoint();s().interaction={type:'rotate-group',ids,originals,center:{x:b.cx,y:b.cy},startAngle:Math.atan2(w.y-b.cy,w.x-b.cx)};return;
         }
         const hit=A.hitTest(p),additive=e.shiftKey||e.metaKey||e.ctrlKey;
-        if(hit&&A.floor().items.includes(hit)){
+        if(s().workspace==='structure'&&hit){
+          if(additive){const wasSelected=s().selectedIds.has(hit.id);if(wasSelected){const next=new Set(s().selectedIds);next.delete(hit.id);A.setStructuralSelection(Array.from(next),Array.from(next)[0]);return;}A.setStructuralSelection([...s().selectedIds,hit.id],hit.id);}
+          else if(!s().selectedIds.has(hit.id))A.setStructuralSelection([hit.id],hit.id);
+          if(!additive){const targets=A.structuralMoveTargets(hit);if(!targets)return;A.checkpoint();s().interaction={type:'move',id:hit.id,original:A.deep(hit),start:w,structTargets:targets,structOriginals:Object.fromEntries(targets.map(o=>[o.id,A.deep(o)]))};}
+        } else if(hit&&A.floor().items.includes(hit)){
           if(additive){const wasSelected=s().selectedIds.has(hit.id);A.toggleSelection(hit.id);if(wasSelected)return;}else if(!s().selectedIds.has(hit.id))A.select(hit.id);
           const ids=Array.from(s().selectedIds.has(hit.id)?s().selectedIds:[hit.id]);
           const targets=A.floor().items.filter(o=>ids.includes(o.id));if(targets.some(o=>!A.canTransform(o)))return;
           A.checkpoint();s().interaction={type:'move-group',ids,targets,originals:Object.fromEntries(targets.map(o=>[o.id,A.deep(o)])),start:w};
         } else if(!hit||(hit.type==='room'&&(e.altKey||e.shiftKey||e.metaKey||e.ctrlKey))){
-          s().interaction={type:'marquee',start:w,current:w,additive,clickTarget:hit?.id||null};
+          s().interaction={type:'marquee',start:w,current:w,additive:additive||s().workspace==='structure',clickTarget:hit?.id||null};
           if(!additive)A.select(null);
         } else {
           if(hit.boundaryWallIds){A.select(hit.id);A.showHint('This room follows its boundary walls. Move a wall to edit it.');return;}

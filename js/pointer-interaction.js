@@ -133,6 +133,18 @@
   function marqueeSelection(interaction) {
     const s=S();
     const minX=Math.min(interaction.start.x,interaction.current.x),maxX=Math.max(interaction.start.x,interaction.current.x),minY=Math.min(interaction.start.y,interaction.current.y),maxY=Math.max(interaction.start.y,interaction.current.y);
+    if(s.workspace==='structure'){
+      const f=A.floor(),ids=[];
+      const overlaps=(a,b)=>a.maxX>=minX&&a.minX<=maxX&&a.maxY>=minY&&a.minY<=maxY;
+      const bounds=(xs,ys)=>({minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)});
+      for(const o of f.columns||[]){const x=o.x??(A.structuralCenter(o).x-o.w/2),y=o.y??(A.structuralCenter(o).y-o.d/2);if(overlaps({minX:x,minY:y,maxX:x+o.w,maxY:y+o.d}))ids.push(o.id);}
+      for(const o of f.beams||[])if(overlaps(bounds([o.x1,o.x2],[o.y1,o.y2])))ids.push(o.id);
+      for(const o of f.structuralWalls||[])if(overlaps(bounds([o.x1,o.x2],[o.y1,o.y2])))ids.push(o.id);
+      if(A.structuralLayers?.loads)for(const o of f.loads||[])if(o.x>=minX&&o.x<=maxX&&o.y>=minY&&o.y<=maxY)ids.push(o.id);
+      if(A.structuralLayers?.slabs)for(const o of f.slabs||[])if(A.structuralPolygon(o).some(p=>p.x>=minX&&p.x<=maxX&&p.y>=minY&&p.y<=maxY)||[{x:minX,y:minY},{x:maxX,y:minY},{x:maxX,y:maxY},{x:minX,y:maxY}].some(p=>A.pointInPolygon(p,A.structuralPolygon(o))))ids.push(o.id);
+      if(A.structuralLayers?.grids)for(const o of f.grids||[])if(o.axis==='x'?o.position>=minX&&o.position<=maxX:o.position>=minY&&o.position<=maxY)ids.push(o.id);
+      const next=interaction.additive?new Set(s.selectedIds):new Set();ids.forEach(id=>next.add(id));A.setStructuralSelection(Array.from(next),ids[0]||Array.from(next)[0]);return;
+    }
     const ids=A.floor().items.filter(o=>{if(!A.isRoofVisibleInPlan(o)||(s.workspace==='services'&&!o.system)||s.project.framingMode)return false;const b=A.itemAabb(o);return b.maxX>=minX&&b.minX<=maxX&&b.maxY>=minY&&b.minY<=maxY}).map(o=>o.id);
     const next=interaction.additive?new Set(s.selectedIds):new Set();ids.forEach(id=>next.add(id));A.setSelection(Array.from(next),ids[0]||Array.from(next)[0]);
   }
