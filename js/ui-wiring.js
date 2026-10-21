@@ -526,8 +526,8 @@
     if(menuHelp)menuHelp.onclick=()=>{mobileMenuPopover?.classList.remove('show');A.$('#helpModal').classList.add('show')};
 
     // Drag-drop on stage
-    s.stage.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy'});
-    s.stage.addEventListener('drop',e=>{e.preventDefault();if(s.viewMode==='3d'){A.showToast('Switch to Plan to place objects');return}const type=e.dataTransfer.getData('application/x-atelier-object');if(!type)return;const r=s.canvas.getBoundingClientRect(),w=A.screenToWorld({x:e.clientX-r.left,y:e.clientY-r.top});A.addObjectToPlan(type,w)});
+    s.stage.addEventListener('dragover',e=>{e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='copy'});
+    s.stage.addEventListener('drop',e=>{e.preventDefault();if(s.viewMode==='3d'){A.showToast('Switch to Plan to place service objects, then view them in 3D');return}const type=e.dataTransfer?.getData('application/x-atelier-object')||e.dataTransfer?.getData('text/plain');if(!type||!A.CATALOG.some(o=>o.type===type))return;const r=s.canvas.getBoundingClientRect(),w=A.screenToWorld({x:e.clientX-r.left,y:e.clientY-r.top});A.addObjectToPlan(type,w)});
 
     // Canvas pointer events & keyboard
     bindCanvasPointerEvents(s.canvas);

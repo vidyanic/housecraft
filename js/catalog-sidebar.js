@@ -64,6 +64,7 @@
     A.$$('.object-card').forEach(el => {
       el.addEventListener('dragstart', e => {
         e.dataTransfer.setData('application/x-atelier-object', el.dataset.object);
+        e.dataTransfer.setData('text/plain', el.dataset.object);
         e.dataTransfer.effectAllowed = 'copy';
       });
       el.addEventListener('click', () => A.addObjectToPlan(el.dataset.object));
