@@ -1,0 +1,7 @@
+{
+  "modified": "77 passed · 1 failed · complete",
+  "baseline": "75 passed · 1 failed · complete",
+  "existingFailures": [
+    "FAIL — Cross-floor beam copying includes remapped supports and retains geometry: Supports omitted"
+  ]
+}

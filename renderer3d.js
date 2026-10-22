@@ -1427,7 +1427,7 @@
       upsert(prefix+'walls',{walls:f.walls,openings:f.items.filter(o=>['door','window'].includes(o.shape)),mode:projectData.camera.wallMode},g=>buildWalls(g,f,projectData.camera.wallMode||'cutaway'),elevation);
       if(!projectData.framingMode)f.items.forEach(item=>{
         const hiddenRoof=(item.shape||item.type)==='roof'&&projectData.camera.roofMode==='hidden';
-        const skipStairEntrance=item.shape==='three-side-stairs'&&connections.some(c=>Math.abs(c.o.x-item.x)<.1&&Math.abs(c.o.y-item.y)<.1&&Math.abs(c.o.w-item.w)<.1&&Math.abs(c.o.d-item.d)<.1);upsert(prefix+'item:'+item.id,{...item,hiddenRoof,skipStairEntrance},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject({...item,skipStairEntrance})),elevation,true);
+        const skipStairEntrance=item.shape==='three-side-stairs'&&connections.some(c=>window.Atelier.stairEntranceOnArrival(c.o,item));upsert(prefix+'item:'+item.id,{...item,hiddenRoof,skipStairEntrance},g=>g.add(hiddenRoof?roofShadowOccluder(item):buildObject({...item,skipStairEntrance})),elevation,true);
       });
       }
       if(structureOnly||projectData.showStructure!==false){

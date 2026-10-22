@@ -27,6 +27,22 @@ test('Three-sided stair has equal rises/going, clear landings and mirrored start
  assert.throws(()=>A.threeSideStairLayout({...spec,w:150,d:150}));const swapped=A.threeSideStairLayout({...spec,w:spec.d,d:spec.w});assert.equal(swapped.alongX,true);
  const p=A.deep(A.DEFAULT);p.floors[0].items.push({...spec,id:'test-new-stair',x:0,y:0,rotation:0});assert.equal(A.validateProject(p).floors[0].items.at(-1).stairStartSide,'short');for(const changes of [{stairStartSide:'bad'},{stairHandedness:'bad'},{stairWidth:-1},{stairTargetRiser:'bad'},{stairLandingMin:-1}]){const bad=A.deep(p);Object.assign(bad.floors[0].items.at(-1),changes);assert.throws(()=>A.validateProject(bad));}
 });
+test('Semi L stair unfolds two collinear flights, preserves clear landings and a compact upper opening',()=>{
+ const spec=A.CATALOG.find(o=>o.type==='semi-l-stairs');assert.ok(spec);assert.ok(spec.w>350.52);
+ for(const swap of [false,true])for(const stairHandedness of ['left','right']){
+  const o={...spec,w:swap?spec.d:spec.w,d:swap?spec.w:spec.d,stairHandedness},before=JSON.stringify(o),l=A.threeSideStairLayout(o);
+  assert.equal(JSON.stringify(o),before);assert.equal(l.counts.join(','),'5,7,5');assert.equal(l.total,17);assert.ok(l.riser>=14&&l.riser<=18&&l.going>=25&&l.going<=33&&l.comfort>=60&&l.comfort<=65);
+  const [a,b,c,d]=l.path,cross=(p,q,r)=>(q.x-p.x)*(r.y-q.y)-(q.y-p.y)*(r.x-q.x);
+  assert.ok(Math.abs(cross(a,b,c))<1e-7,'First two flights must be collinear');assert.ok((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y)>0,'Straight flights must ascend in the same direction');
+  assert.ok(Math.abs((c.x-b.x)*(d.x-c.x)+(c.y-b.y)*(d.y-c.y))<1e-7,'Final flight must turn 90 degrees');
+  assert.equal(l.parts.filter(p=>p.kind==='landing').length,2);assert.equal(l.parts.filter(p=>p.kind==='tread').length,l.total-3);assert.equal(l.risers.length,l.total);
+  assert.ok(l.landingAlong>=spec.stairWidth-1e-7&&l.landingAcross>=spec.stairWidth-1e-7);
+  for(let i=0;i<l.parts.length;i++){const p=l.parts[i];assert.ok(p.x-p.w/2>=-o.w/2-1e-7&&p.x+p.w/2<=o.w/2+1e-7&&p.y-p.d/2>=-o.d/2-1e-7&&p.y+p.d/2<=o.d/2+1e-7,'Part outside unfolded footprint');if(i)assert.ok(Math.abs(p.z-l.parts[i-1].z-l.riser)<1e-7);for(const q of l.parts.slice(i+1)){const x=Math.min(p.x+p.w/2,q.x+q.w/2)-Math.max(p.x-p.w/2,q.x-q.w/2),y=Math.min(p.y+p.d/2,q.y+q.d/2)-Math.max(p.y-p.d/2,q.y-q.d/2);assert.ok(x<1e-7||y<1e-7,'Unfolded stair parts overlap');}}
+  assert.ok(Math.abs(l.openingArea.w*l.openingArea.d-350.52*289.56)<1e-7,'Upper opening must retain the compact U core');
+ }
+ assert.throws(()=>A.threeSideStairLayout({...spec,w:350.52}),/cannot fit/);
+ const p=A.deep(A.DEFAULT);p.floors[0].items.push({...spec,id:'semi-roundtrip',x:0,y:0});assert.equal(A.normalizeProject(A.validateProject(p)).floors[0].items.at(-1).stairLayout,'semi-l');const bad=A.deep(p);bad.floors[0].items.at(-1).stairLayout='bad';assert.throws(()=>A.validateProject(bad),/stair layout/);
+});
 test('Rotated bounds match transformed corners including clearance and degenerate sizes',()=>{
  for(const rotation of [-180,-45,0,30,90,180,359])for(const [w,d] of [[100,50],[0,50],[10,5],[-20,30]]){
   const o={x:-30,y:70,w,d,rotation},points=A.rotatedRect(o),box=A.itemAabb(o,7),expected={minX:Math.min(...points.map(p=>p.x))-7,maxX:Math.max(...points.map(p=>p.x))+7,minY:Math.min(...points.map(p=>p.y))-7,maxY:Math.max(...points.map(p=>p.y))+7};
