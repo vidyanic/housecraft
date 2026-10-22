@@ -225,7 +225,7 @@
     if(next!=='3d')window.atelier3D?.setWalk?.(false);
     s.viewMode=next;s.canvas.dataset.view=next;s.canvas.style.display=next==='3d'?'none':'block';A.$('#threeStage').style.display=next==='3d'?'block':'none';window.atelier3D?.setVisible(next==='3d');A.$$('.view-switch button').forEach(b=>b.classList.toggle('active',b.dataset.view===next));
     A.$$('.tool[data-tool="room"],.tool[data-tool="wall"],.tool[data-tool="roof"],.tool[data-tool="dimension"]').forEach(b=>b.disabled=next==='3d');
-    A.$('#gridBtn').style.opacity=next==='3d'?'.35':'1';A.$('#gridBtn').disabled=next==='3d';A.$('#gridLegend').style.display=next==='3d'?'none':'block';A.$('#compass').style.display=next==='3d'?'none':'grid';
+    A.$('#gridBtn').style.opacity=next==='3d'?'.35':'1';A.$('#gridBtn').disabled=next==='3d';A.$('#compass').style.display=next==='3d'?'none':'grid';
     A.$('#workspaceModeLabel').textContent=next==='3d'?'physically based 3D model':'2D drafting workspace';setTool(next==='3d'?'pan':'select');A.renderInspector();A.fitPlan();A.showToast(next==='3d'?'PBR scene ready — orbit, pan and zoom':'2D plan view');
   }
 

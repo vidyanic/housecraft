@@ -238,3 +238,27 @@ Fresh verification:
 - `git diff --check` passed. Structural modeling/calculations were unchanged; engineering benchmarks were not rerun.
 
 All browser runs used `?test=1` isolated storage. `tests/ui-preview.html?stair=semi-l` opens the dedicated fixture. `deliverables/semi-l-stair/ground-to-first.json` is an importable two-floor example. Screenshots: `semi-l-ground-{desktop,tablet,mobile}.png`, `semi-l-first-{desktop,tablet,mobile}.png`, and `semi-l-stack-{desktop,tablet,mobile}.png`. Desktop ground/first-floor/3D and mobile ground/3D images were visually inspected.
+
+## 22 October 2026 — Canvas control placement
+
+Moved the live grid spacing legend into the Help & shortcuts feature guide, compacted the floor picker, and positioned Expand beside Fit as an icon. Zoom remains at the canvas bottom-right. Fit now uses the available canvas area below the floor picker when sizing and centring the plan.
+
+Fresh verification: `node tests/regression.cjs` passed 15 groups and parsed all application scripts. The browser suite passed 71 groups; its sole failure is the existing **Cross-floor beam copying includes remapped supports and retains geometry: Supports omitted** check, also recorded above for the earlier stair work. The updated canvas-controls assertion passed, including guide placement, compact picker, Fit/Expand grouping, Zoom placement and History accessibility. The 3D Fit/structure-controls responsive check passed. The Help & shortcuts guide was visually inspected with the dynamic spacing text. All browser checks used `?test=1` isolated storage. `git diff --check` passed.
+
+## 22 October 2026 — Precise touch movement and canvas recovery
+
+Completed the canvas-control adjustments: floor selection is 104 px wide on desktop/tablet and 96 px on mobile, with mobile touch height preserved. Fit places the plan immediately below the corner controls with 24 px side margins and bottom-control clearance. Zoom-out, pinch and wheel retain their direction when a large plan fits below the former minimum scale. Grid spacing is in Help; Expand/Restore is an accessible icon beside Fit; zoom occupies the bottom-right.
+
+The permanent toolbar now includes Keyboard. It opens a precise-move overlay, focuses native keyboard input and also provides touch arrows for keyboards without arrow keys. Move steps are 1 cm, 5 cm or grid spacing. Physical/input/touch arrows share movement and edit transactions. Holds form one undo action; canceled touch pointers roll back; locked/empty selections, typing and step changes do not create edits. Escape returns focus, switching to 3D closes/disables the control, read-only hides it, and visible-viewport changes reposition the overlay above the software keyboard.
+
+Plan contexts repaint on pageshow, focus, visibility/resume and context restoration. The 3D scheduler now cancels its animation-frame token when suspended and starts a fresh loop on resume. Real WebGL context restoration regenerates the rendered environment and shadows and resumes the main scene while retaining camera, selection, geometry and history.
+
+Fresh verification:
+- `node tests/regression.cjs`: 15 groups passed; application scripts parsed.
+- `node tests/change-tracking.cjs`: passed selection/no-op, drag, history/redo, autosave and cancellation checks.
+- `git diff --check`: passed.
+- `node validation/canvas-controls.cjs`: browser suite 81 passed, 1 failed. All new Fit, native keyboard, precise/grouped nudges, locks/no-selection, typing/history, Escape/focus, 2D repaint and suspended-3D/idle checks passed. The sole failure remains the previously recorded cross-floor beam-copy **Supports omitted** failure.
+- The same runner exercised `tests/ui-preview.html` at 1440/820/390 px in Architecture, Structure, Services and 3D, with Expand/Restore and overflow checks. Real touch taps, held arrows, pointer cancellation, native-input focus and read-only isolation passed.
+- `WEBGL_lose_context` loss/restoration passed at all three sizes, including loss while visible and restoration after switching to Plan. Main-scene frame counters advance again; camera/project/history remain unchanged after settling pending fixture autosave. Zero page errors.
+
+Evidence: `canvas-controls-results.json`, `canvas-controls-{desktop,tablet,mobile}-{architecture,structure,services,3d}.png`, `canvas-keyboard-{desktop,tablet,mobile}.png`, and `canvas-recovered-{desktop,tablet,mobile}.png`. Desktop/mobile keyboard, desktop plan, tablet 3D and recovered mobile 3D were visually inspected. All tests used isolated test storage. Physical device sleep/wake and native OS keyboard display still require device verification; browser lifecycle and real GPU-context-loss paths were exercised in automated Edge. Structural calculations were unchanged, so engineering benchmarks were not rerun.

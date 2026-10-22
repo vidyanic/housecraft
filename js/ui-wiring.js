@@ -18,8 +18,9 @@
     const s=S(),canvas=s.canvas,stage=s.stage;
     if(!canvas || !stage) return;
     const dpr=Math.min(devicePixelRatio||1,2);
-    canvas.width=canvas.clientWidth*dpr;canvas.height=canvas.clientHeight*dpr;
-    s.ctx=canvas.getContext('2d');s.ctx.scale(dpr,dpr);A.draw();
+    if(!canvas.clientWidth||!canvas.clientHeight)return;
+    canvas.width=Math.round(canvas.clientWidth*dpr);canvas.height=Math.round(canvas.clientHeight*dpr);
+    s.ctx=canvas.getContext('2d');if(!s.ctx||s.ctx.isContextLost?.())return;s.ctx.setTransform(dpr,0,0,dpr,0,0);A.draw();
   }
 
   // ── Unit presentation sync ───────────────────────────────────
@@ -39,14 +40,16 @@
   function fitPlan() {
     const s=S();
     if(s.viewMode==='3d'){window.atelier3D?.fitCamera(s.project.camera);updateZoom();return}
-    const bounds=A.planBounds(),stage=s.stage,r=stage.getBoundingClientRect(),pad=75;
-    s.scale=Math.max(.18,Math.min(1.2,Math.min((r.width-pad*2)/(bounds.maxX-bounds.minX||1),(r.height-pad*2)/(bounds.maxY-bounds.minY||1))));
-    s.offset={x:(r.width-(bounds.maxX-bounds.minX)*s.scale)/2-bounds.minX*s.scale,y:(r.height-(bounds.maxY-bounds.minY)*s.scale)/2-bounds.minY*s.scale};
+    const bounds=A.planBounds(),r=s.stage.getBoundingClientRect(),pad=24;
+    const controls=[...document.querySelectorAll('.canvas-corners>*')].map(el=>el.getBoundingClientRect()).filter(rect=>rect.height);
+    const topInset=Math.max(12,...controls.map(rect=>rect.bottom-r.top+12)),bottomInset=60;
+    s.scale=Math.max(.000001,Math.min(1.2,(r.width-pad*2)/(bounds.maxX-bounds.minX||1),(r.height-topInset-bottomInset)/(bounds.maxY-bounds.minY||1)));
+    s.offset={x:(r.width-(bounds.maxX-bounds.minX)*s.scale)/2-bounds.minX*s.scale,y:topInset-bounds.minY*s.scale};
     updateZoom();A.draw();
   }
 
   function zoomIn() { const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.min(1.4,s.project.camera.zoom*1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.min(1.8,s.scale*1.15);updateZoom();A.draw(); }
-  function zoomOut(){ const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.max(.000001,s.project.camera.zoom/1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.max(.18,s.scale/1.15);updateZoom();A.draw(); }
+  function zoomOut(){ const s=S();if(s.viewMode==='3d'){s.project.camera.zoom=Math.max(.000001,s.project.camera.zoom/1.15);window.atelier3D?.setCamera(s.project.camera)}else s.scale=Math.max(.000001,s.scale/1.15);updateZoom();A.draw(); }
 
   // ── Undo / redo ──────────────────────────────────────────────
   function undo() { const s=S();if(s.pointerBackup)A.cancelInteraction();if(!s.history.length)return;s.future.push(JSON.stringify(s.project));s.project=JSON.parse(s.history.pop());s.selected=null;s.selectedIds.clear();syncUI();A.queueSave(); }
@@ -229,7 +232,7 @@
         if(pinchStartDist>0){
           const factor=dist/pinchStartDist;
           if(s().viewMode==='3d'){s().project.camera.zoom=Math.max(.18,Math.min(1.4,pinchStartScale*factor));window.atelier3D?.setCamera(s().project.camera)}
-          else{const nextScale=Math.max(.18,Math.min(1.8,pinchStartScale*factor));const r=canvas.getBoundingClientRect();const midScreen={x:(pts[0].x+pts[1].x)/2-r.left,y:(pts[0].y+pts[1].y)/2-r.top};if(pinchMidWorld){s().offset.x=midScreen.x-pinchMidWorld.x*nextScale;s().offset.y=midScreen.y-pinchMidWorld.y*nextScale}s().scale=nextScale}
+          else{const nextScale=Math.max(.000001,Math.min(1.8,pinchStartScale*factor));const r=canvas.getBoundingClientRect();const midScreen={x:(pts[0].x+pts[1].x)/2-r.left,y:(pts[0].y+pts[1].y)/2-r.top};if(pinchMidWorld){s().offset.x=midScreen.x-pinchMidWorld.x*nextScale;s().offset.y=midScreen.y-pinchMidWorld.y*nextScale}s().scale=nextScale}
           updateZoom();A.requestDraw();
         }
         return;
@@ -365,15 +368,29 @@
     canvas.addEventListener('dblclick',e=>{const o=A.findEntity(s().selected);if(!o||s().routeEditing!==o.id||!A.canTransform(o))return;const handle=A.routeHandleHit(A.pointerPos(e),o);if(handle?.type!=='route-segment')return;const points=handle.points,index=handle.indices[1],a=points[index-1],b=points[index];points.splice(index,0,{x:(a.x+b.x)/2,y:(a.y+b.y)/2,z:(a.z+b.z)/2});A.checkpoint();A.setServicePath(o,points);A.draw();A.renderInspector();A.queueSave();});
     canvas.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);A.cancelInteraction();});
     canvas.addEventListener('lostpointercapture',e=>{if(s().pointerOwner===e.pointerId&&s().pointerBackup){activePointers.clear();A.cancelInteraction();}});
-    addEventListener('blur',()=>{s().spacePressed=false;activePointers.clear();if(s().pointerBackup)A.cancelInteraction();s().interaction=null;});
+    addEventListener('blur',()=>{A.finishNudge();s().spacePressed=false;activePointers.clear();if(s().pointerBackup)A.cancelInteraction();s().interaction=null;});
 
-    canvas.addEventListener('wheel',e=>{e.preventDefault();if(s().interaction)return;if(s().viewMode==='3d'){s().project.camera.zoom=Math.max(.18,Math.min(1.4,s().project.camera.zoom*(e.deltaY>0?.9:1.1)));updateZoom();A.requestDraw();return}const p=A.pointerPos(e),before=A.screenToWorld(p);s().scale=Math.max(.18,Math.min(1.8,s().scale*(e.deltaY>0?.9:1.1)));s().offset.x=p.x-before.x*s().scale;s().offset.y=p.y-before.y*s().scale;updateZoom();A.requestDraw()},{passive:false});
+    canvas.addEventListener('wheel',e=>{e.preventDefault();if(s().interaction)return;if(s().viewMode==='3d'){s().project.camera.zoom=Math.max(.18,Math.min(1.4,s().project.camera.zoom*(e.deltaY>0?.9:1.1)));updateZoom();A.requestDraw();return}const p=A.pointerPos(e),before=A.screenToWorld(p);s().scale=Math.max(.000001,Math.min(1.8,s().scale*(e.deltaY>0?.9:1.1)));s().offset.x=p.x-before.x*s().scale;s().offset.y=p.y-before.y*s().scale;updateZoom();A.requestDraw()},{passive:false});
   }
 
   // ── Keyboard shortcuts ───────────────────────────────────────
+  function nudgeSelection(key,step) {
+    const s=S();if(A.readOnly||s.viewMode!=='plan'||s.interaction||A.$('.modal-backdrop.show'))return;
+    const dx=key==='ArrowLeft'?-step:key==='ArrowRight'?step:0,dy=key==='ArrowUp'?-step:key==='ArrowDown'?step:0;
+    if(!dx&&!dy)return;
+    const targets=(s.selectedIds.size?A.selectedObjectList():[A.findEntity(s.selected)]).filter(o=>A.canTransform(o)&&!(o.type==='grid'&&(o.axis==='x'?!dx:!dy)));
+    if(!targets.length)return;
+    if(!s.nudgeActive){A.beginEdit();s.nudgeActive=true;}
+    targets.forEach(o=>{if(o.type==='grid')o.position+=o.axis==='x'?dx:dy;else if(o.x!==undefined){o.x+=dx;o.y+=dy}else{o.x1+=dx;o.x2+=dx;o.y1+=dy;o.y2+=dy;if(o.type==='dimension')for(const end of [1,2])if(o['anchor'+end]){o['anchor'+end].dx=(o['anchor'+end].dx||0)+dx;o['anchor'+end].dy=(o['anchor'+end].dy||0)+dy;}}});A.requestDraw();
+  }
+  function finishNudge() {
+    if(!S().nudgeActive)return;
+    S().nudgeActive=false;A.commitEdit();A.renderInspector();A.draw();
+  }
   function bindKeyboard() {
     addEventListener('keydown',e=>{
       if(e.key==='Escape'&&A.$('#helpModal').classList.contains('show')){A.$('#helpModal').classList.remove('show');return}
+      if(e.target.id==='moveKeyboardInput'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();nudgeSelection(e.key,A.moveKeyboardStep());return;}
       if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
       if(e.code==='Space'){S().spacePressed=true;e.preventDefault();return;}
       if(e.defaultPrevented||e.target.closest?.('button,[role="tab"],.modal-backdrop.show'))return;
@@ -387,15 +404,14 @@
       if(S().viewMode==='plan'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
         e.preventDefault();const project=S().project;
         const step=e.shiftKey?(project.unit==='ft'||project.unit==='in'?30.48:100):(project.snap?A.gridStep():5);
-        const dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;
-        const targets=(S().selectedIds.size?A.selectedObjectList():[A.findEntity(S().selected)]).filter(o=>A.canTransform(o));
-        if(targets.length){if(!S().nudgeActive){A.beginEdit();S().nudgeActive=true;}targets.forEach(o=>{if(o.type==='grid')o.position+=o.axis==='x'?dx:dy;else if(o.x!==undefined){o.x+=dx;o.y+=dy}else{o.x1+=dx;o.x2+=dx;o.y1+=dy;o.y2+=dy;if(o.type==='dimension')for(const end of [1,2])if(o['anchor'+end]){o['anchor'+end].dx=(o['anchor'+end].dx||0)+dx;o['anchor'+end].dy=(o['anchor'+end].dy||0)+dy;}}});A.requestDraw();}
+        nudgeSelection(e.key,step);
         return;
       }
       if(e.ctrlKey||e.metaKey||e.altKey)return;
       const keys={v:'select',r:'room',w:'wall',t:'roof',d:'dimension',h:'pan',p:'column',b:'beam'};if(keys[e.key.toLowerCase()])A.setTool(keys[e.key.toLowerCase()])
     });
-    addEventListener('keyup',e=>{if(e.code==='Space')S().spacePressed=false;if(S().nudgeActive&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){S().nudgeActive=false;A.commitEdit();A.renderInspector();A.draw();}});
+    addEventListener('keyup',e=>{if(e.code==='Space')S().spacePressed=false;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))finishNudge();});
+    addEventListener('blur',finishNudge,true);
   }
 
   // ── Master init function ─────────────────────────────────────
@@ -538,6 +554,15 @@
 
     // Resize observer
     new ResizeObserver(resizeCanvas).observe(s.stage);
+    let recoveryFrame=null;
+    const recover=()=>{
+      if(document.hidden)return;
+      A.cancelScheduledDraw();if(recoveryFrame!==null)cancelAnimationFrame(recoveryFrame);
+      recoveryFrame=requestAnimationFrame(()=>{recoveryFrame=null;resizeCanvas();window.atelier3D?.resume();});
+    };
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){finishNudge();A.cancelScheduledDraw();}else recover();});
+    addEventListener('pageshow',recover);addEventListener('focus',recover);document.addEventListener('resume',recover);
+    s.canvas.addEventListener('contextlost',event=>event.preventDefault());s.canvas.addEventListener('contextrestored',recover);
 
     // Beforeunload — flush save
     addEventListener('beforeunload',A.flushSave);
@@ -552,7 +577,7 @@
 
   Object.assign(A, {
     resizeCanvas, syncUnitPresentation, updateZoom, fitPlan,
-    zoomIn, zoomOut, undo, redo,
+    zoomIn, zoomOut, undo, redo, nudgeSelection, finishNudge,
     openFloorModal, moveFloorLevel, deleteFloor, renderFloors, updateCounts, syncUI, syncFloorViewMode,
     setMobileTab, toggleDesktopPanel, initUI
   });

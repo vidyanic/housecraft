@@ -11,11 +11,13 @@
     addFloor.textContent='+ Floors';addFloor.title='Add or manage floors and 3D stacking';addFloor.setAttribute('aria-label','Add or manage floors');nav.append(addFloor);
     const corners=document.createElement('div');corners.className='canvas-corners';stage.append(corners);
     const floorCorner=document.createElement('div');floorCorner.className='canvas-floor-corner';floorCorner.append(floorPicker);corners.append(floorCorner,$('.canvas-actions'));$('.canvas-actions').append($('.studio-floor-display'));$('.crumb').hidden=true;
+    const gridGuide=document.createElement('div');gridGuide.className='help-feature grid-guide';gridGuide.innerHTML='<strong>Grid spacing.</strong> ';
+    [...$('#helpModal').querySelectorAll('.help-section')].find(section=>section.querySelector('h4')?.textContent==='Feature guide')?.append(gridGuide);gridGuide.append($('#gridLegend'));
     const help=$('#helpBtn');help.className='icon-button';help.innerHTML=A.icon('i-help');help.setAttribute('aria-label','Help and shortcuts');help.title='Help and shortcuts';$('#commandBtn').after(help);
     $('#objectsBtn').hidden=true;
     const bottom=document.createElement('div');bottom.className='canvas-bottom';ws.append(bottom);bottom.append($('.zoom-controls'));
     const history=document.createElement('div');history.className='canvas-history';stage.append(history);history.append($('#undoBtn'),$('#redoBtn'));
-    const expand=document.createElement('button');expand.id='expandCanvas';expand.className='button';expand.textContent='⤢ Expand canvas';expand.setAttribute('aria-pressed','false');bottom.append(expand);
+    const expand=document.createElement('button');expand.id='expandCanvas';expand.className='icon-button';expand.innerHTML='⤢';expand.title='Expand canvas';expand.setAttribute('aria-label','Expand canvas');expand.setAttribute('aria-pressed','false');$('#fitBtn').after(expand);
     const surfaces={catalog:$('#catalogPanel'),inspector:$('#inspectorPanel'),project,navigation:nav,tools};
     const pinned={catalog:innerWidth>=1100||innerWidth<700,inspector:innerWidth>=700,project:true,navigation:true,tools:true},timers={},handles={};let savedPins=null;
     function layout(){for(const key of Object.keys(pinned))app.dataset[key+'Visible']=String(pinned[key]);for(const key of ['catalog','inspector'])ws.classList.toggle('hide-'+key,!pinned[key]);}
@@ -46,7 +48,7 @@
     }
     function focus(on){
       if(on){savedPins={...pinned};for(const key of Object.keys(handles))hide(key,true);}
-      document.body.classList.toggle('canvas-focus',on);expand.textContent=on?'↙ Restore workspace':'⤢ Expand canvas';expand.setAttribute('aria-pressed',String(on));
+      document.body.classList.toggle('canvas-focus',on);expand.textContent=on?'↙':'⤢';expand.title=on?'Restore workspace':'Expand canvas';expand.setAttribute('aria-label',expand.title);expand.setAttribute('aria-pressed',String(on));
       if(!on&&savedPins){Object.assign(pinned,savedPins);for(const key of Object.keys(handles)){surfaces[key].classList.toggle('space-open',pinned[key]);surfaces[key].inert=!pinned[key];handles[key].hidden=pinned[key];handles[key].setAttribute('aria-expanded',String(pinned[key]));}savedPins=null;}
       layout();requestAnimationFrame(()=>{A.resizeCanvas();window.atelier3D?.resize();});
     }
@@ -55,7 +57,7 @@
     A.setMobileTab=key=>{if(key!=='stage')show(key);};window.setMobileTab=A.setMobileTab;
     A.toggleDesktopPanel=key=>pinned[key]?hide(key,true):show(key);
     for(const [key,id] of [['catalog','closeCatalogBtn'],['inspector','closeInspectorBtn']]){const close=$('#'+id);close.title='Hide '+(key==='catalog'?'Library':'Properties');close.setAttribute('aria-label',close.title);close.onclick=()=>{hide(key,true);handles[key].focus();};}
-    document.addEventListener('keydown',e=>{if(e.key!=='Escape'||$('.modal-backdrop.show'))return;const key=Object.keys(handles).find(k=>surfaces[k].contains(e.target));if(key&&!pinned[key]){hide(key,true);handles[key].focus();e.preventDefault();e.stopImmediatePropagation();}else if(document.body.classList.contains('canvas-focus')){focus(false);expand.focus();e.preventDefault();}},true);
+    document.addEventListener('keydown',e=>{if(e.key!=='Escape'||$('.modal-backdrop.show')||e.target.closest?.('#moveKeyboard'))return;const key=Object.keys(handles).find(k=>surfaces[k].contains(e.target));if(key&&!pinned[key]){hide(key,true);handles[key].focus();e.preventDefault();e.stopImmediatePropagation();}else if(document.body.classList.contains('canvas-focus')){focus(false);expand.focus();e.preventDefault();}},true);
     matchMedia('(max-width:1099px)').addEventListener('change',e=>{if(e.matches&&pinned.catalog&&pinned.inspector)hide('catalog',true);});
     layout();A.resizeCanvas();setTimeout(A.fitPlan,120);
   };

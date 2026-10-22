@@ -1,0 +1,33 @@
+{
+  "suite": "81 passed · 1 failed · complete",
+  "failures": [
+    "FAIL — Cross-floor beam copying includes remapped supports and retains geometry: Supports omitted"
+  ],
+  "previews": [
+    "desktop architecture",
+    "desktop structure",
+    "desktop services",
+    "desktop 3d",
+    "tablet architecture",
+    "tablet structure",
+    "tablet services",
+    "tablet 3d",
+    "mobile architecture",
+    "mobile structure",
+    "mobile services",
+    "mobile 3d"
+  ],
+  "desktopRecovery": {
+    "frames": 21,
+    "groups": 88
+  },
+  "tabletRecovery": {
+    "frames": 56,
+    "groups": 88
+  },
+  "mobileRecovery": {
+    "frames": 91,
+    "groups": 88
+  },
+  "errors": []
+}

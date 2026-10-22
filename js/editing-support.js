@@ -20,7 +20,7 @@
     function captureEdit(e){
       const el=e.target;
       if(el.id==='unitSelect'||el.id?.startsWith('site-')||el.closest('[data-project-settings]')||el.id==='copyTargetFloor')return;
-      if(['moveConstraint','moveDistance'].includes(el.id))return;
+      if(['moveConstraint','moveDistance','moveKeyboardInput','moveKeyboardStep'].includes(el.id))return;
       if(el.closest('[data-structural-editor]'))return;
       if(el.id?.startsWith('service')||el.id==='routeDrawElevation')return;
       if(['stairStartSide','stairHandedness'].includes(el.id)||A.findEntity(s.selected)?.shape==='three-side-stairs'&&['w','d','height','stairWidth','stairLandingMin','stairPlatformLength','stairTargetRiser'].includes(el.dataset.key))return;

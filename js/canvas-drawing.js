@@ -68,6 +68,7 @@
       for(let y=sy;y<h;y+=minor){c.moveTo(0,y);c.lineTo(w,y)} c.stroke();
     }
     // Major grid (2′ / 1 m)
+    if(major<3)return;
     c.strokeStyle='#c3cbc4'; c.lineWidth=1; c.beginPath();
     let sx=((s.offset.x%major)+major)%major, sy=((s.offset.y%major)+major)%major;
     for(let x=sx;x<w;x+=major){c.moveTo(x,0);c.lineTo(x,h)}
@@ -81,7 +82,7 @@
     const minor=project.unit==='ft'||project.unit==='in'?'6″':project.unit==='m'?'0.10 m':'10 cm';
     const major=project.unit==='ft'?'2′':project.unit==='in'?'24″':project.unit==='m'?'1 m':'1 m';
     const units=project.unit==='ft'?'feet + inches':project.unit==='in'?'inches':project.unit==='m'?'metres':'centimetres';
-    el.textContent=`Grid · snap ${snap} · minor ${minor} · major ${major} · ${units}`;
+    el.textContent=`Snap ${snap} · minor ${minor} · major ${major} · ${units}`;
   }
 
   // ── Site annotation labels ───────────────────────────────────

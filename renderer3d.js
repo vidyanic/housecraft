@@ -14,7 +14,7 @@
   let visible = false;
   let rebuildQueued = false;
   const sceneRecords = new Map();
-  const renderStats = { updates:0, geometryBuilds:0, transformUpdates:0 };
+  const renderStats = { updates:0, geometryBuilds:0, transformUpdates:0, frames:0 };
   let selectionHelper=null, selectionTarget=null;
   let lastSunSignature='';
   const entityNode=id=>{let found=null;design.traverse(node=>{if(node.userData?.entityId===id)found=node;});return found;};
@@ -61,19 +61,24 @@
     const back = new THREE.Mesh(plane, panel('#e7eef2', .5)); back.scale.set(24, 12, 1); back.position.set(0, 3, -16.8); s.add(back);
     return s;
   }
-  let environment = null;
-  try {
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    const envScene = buildRoomEnvScene();
-    environment = pmrem.fromScene(envScene, .04).texture;
-    envScene.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) n.material.dispose(); });
-    pmrem.dispose();
-  } catch (err) {
-    const c = document.createElement('canvas'); c.width = c.height = 8; const ctx2 = c.getContext('2d'); ctx2.fillStyle = '#dfe6ea'; ctx2.fillRect(0, 0, 8, 8);
-    environment = new THREE.CanvasTexture(c);
+  let environment = null,environmentTarget=null;
+  function refreshEnvironment() {
+    if(environmentTarget)environmentTarget.dispose();else environment?.dispose();
+    environmentTarget=null;
+    const pmrem = new THREE.PMREMGenerator(renderer),envScene = buildRoomEnvScene();
+    try {
+      pmrem.compileEquirectangularShader();
+      environmentTarget = pmrem.fromScene(envScene, .04);
+      environment = environmentTarget.texture;
+    } catch (err) {
+      const c = document.createElement('canvas'); c.width = c.height = 8; const ctx2 = c.getContext('2d'); ctx2.fillStyle = '#dfe6ea'; ctx2.fillRect(0, 0, 8, 8);
+      environment = new THREE.CanvasTexture(c);
+    } finally {
+      envScene.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) n.material.dispose(); });pmrem.dispose();
+    }
+    scene.environment = environment;
   }
-  scene.environment = environment;
+  refreshEnvironment();
 
   const camera = new THREE.PerspectiveCamera(39, 1, 0.03, 180);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -1547,7 +1552,7 @@
     } else {
       if(objectDrag){window.atelierBridge?.cancelEdit?.();objectDrag=null;}
       moveMode=false;transformMode='move';clearManipulationHelper();if(window.Atelier){window.Atelier.state.move3DMode=false;window.Atelier.state.transform3DMode='orbit';}controls.enabled=!walk.active;
-      isLoopRunning = false;
+      stopRenderLoop();
     }
   }
 
@@ -1911,24 +1916,26 @@
   new ResizeObserver(resize).observe(stage);
 
   // ── Render on demand / single-loop scheduler ───────────────────────
-  let isLoopRunning = false;
+  let renderFrame = null,contextLost=false;
   let remainingSettleFrames = 0;
+
+  function stopRenderLoop() {
+    if(renderFrame!==null)cancelAnimationFrame(renderFrame);
+    renderFrame=null;
+  }
 
   function wakeRenderLoop(frames = 0) {
     if (frames > remainingSettleFrames) {
       remainingSettleFrames = frames;
     }
-    if (!isLoopRunning && visible && !document.hidden) {
-      isLoopRunning = true;
-      requestAnimationFrame(tick);
+    if (renderFrame===null && visible && !document.hidden && !contextLost) {
+      renderFrame=requestAnimationFrame(tick);
     }
   }
 
   function tick() {
-    if (!visible || document.hidden) {
-      isLoopRunning = false;
-      return;
-    }
+    renderFrame=null;
+    if (!visible || document.hidden || contextLost) return;
 
     let keepRunning = false;
 
@@ -1958,6 +1965,7 @@
     }
 
     renderer.render(scene, camera);
+    renderStats.frames++;
 
     if (remainingSettleFrames > 0) {
       remainingSettleFrames--;
@@ -1965,18 +1973,20 @@
     }
 
     if (keepRunning) {
-      requestAnimationFrame(tick);
-    } else {
-      isLoopRunning = false;
+      wakeRenderLoop();
     }
   }
 
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && visible) {
-      wakeRenderLoop(3);
-    }
-  });
+  function resume() {
+    stopRenderLoop();
+    if(!visible||document.hidden||contextLost)return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));resize();
+    renderer.shadowMap.needsUpdate=true;wakeRenderLoop(5);
+  }
+  renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;stopRenderLoop();clearWalkInput();});
+  renderer.domElement.addEventListener('webglcontextrestored',()=>{contextLost=false;refreshEnvironment();renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;resume();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopRenderLoop();});
 
-  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, setWalk, isWalking: () => walk.active, getWalkState:()=>({active:walk.active,moving:isWalkMoving(),position:camera.position.toArray()}), requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries,cameraDistance:camera.position.distanceTo(controls.target),cameraTarget:controls.target.toArray()}) };
+  window.atelier3D = { setVisible, setMoveMode, setManipulationMode, requestRebuild, rebuild, setCamera, fitCamera, setPreset, updateSun, resize, resume, setWalk, isWalking: () => walk.active, getWalkState:()=>({active:walk.active,moving:isWalkMoving(),position:camera.position.toArray()}), requestRender: wakeRenderLoop, getStats:()=>({...renderStats,groups:sceneRecords.size,geometries:renderer.info.memory.geometries,contextLost,cameraDistance:camera.position.distanceTo(controls.target),cameraTarget:controls.target.toArray()}) };
   window.dispatchEvent(new CustomEvent('atelier:renderer-ready'));
 })();

@@ -15,6 +15,7 @@ body.studio.canvas-space .view-switch{flex:1;justify-content:flex-start;gap:2px}
 body.studio.canvas-space .view-switch button{padding:0 12px;font-size:12px}
 body.studio.canvas-space .level-picker{margin:0;gap:6px}
 body.studio.canvas-space .level-picker select{width:134px;height:34px;background:white}
+body.studio.canvas-space .canvas-floor-corner .level-picker select{width:104px;height:30px;font-size:11px}
 body.studio.canvas-space .studio-floor-display select{width:124px}
 body.studio.canvas-space .canvas-actions{display:flex;gap:4px;position:static}
 body.studio.canvas-space .canvas-actions button{height:34px;width:34px;min-width:34px;border:1px solid #dce3e9;border-radius:5px;background:white;color:#526778}
@@ -41,6 +42,19 @@ body.studio.canvas-space .task-panel-actions,body.studio.canvas-space .stage-top
 body.studio.canvas-space .panel-head{height:68px;min-height:68px;padding:12px 14px}
 body.studio.canvas-space .panel-title{font-size:14px}
 body.studio.canvas-space .panel-close-btn{width:32px;height:32px;color:#687b89}
+body.studio.canvas-space .move-keyboard{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);width:260px;max-width:calc(100% - 24px);box-sizing:border-box;padding:12px;background:#fff;border:1px solid #c9d6d0;border-radius:8px;box-shadow:0 4px 24px #23374524;z-index:46;overflow:auto}
+body.studio.canvas-space .move-keyboard[hidden],body.read-only #moveKeyboardBtn{display:none!important}
+body.studio.canvas-space #moveKeyboardBtn>span:first-child{font-size:23px;line-height:1}
+body.studio.canvas-space .move-keyboard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+body.studio.canvas-space .move-keyboard button{height:44px;min-width:44px;border:1px solid #dce3e9;background:#f7fafb;border-radius:5px;color:#24665b;font-size:22px;touch-action:none;user-select:none}
+body.studio.canvas-space .move-keyboard label{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+body.studio.canvas-space .move-keyboard input{width:100%;box-sizing:border-box;margin-top:8px;font-size:16px}
+body.studio.canvas-space .move-keyboard p{font-size:11px;line-height:1.4;margin:8px 0;color:#526778}
+body.studio.canvas-space .move-keyboard-arrows{display:grid;grid-template-columns:repeat(3,44px);gap:4px;justify-content:center}
+body.studio.canvas-space .move-keyboard-arrows [data-nudge="ArrowUp"]{grid-column:2}
+body.studio.canvas-space .move-keyboard-arrows [data-nudge="ArrowLeft"]{grid-column:1;grid-row:2}
+body.studio.canvas-space .move-keyboard-arrows [data-nudge="ArrowDown"]{grid-column:2;grid-row:2}
+body.studio.canvas-space .move-keyboard-arrows [data-nudge="ArrowRight"]{grid-column:3;grid-row:2}
 body.studio.canvas-space .eyebrow{font-size:8px;letter-spacing:.8px}
 body.studio.canvas-space #duplicateSelected,body.studio.canvas-space #rotateSelected,body.studio.canvas-space #deleteSelected{display:none}
 body.studio.canvas-space .space-handle{position:absolute;height:44px;min-width:44px;border:1px solid #dce3e9;border-radius:5px;background:#fff;color:#315b50;font-size:10px;font-weight:600;cursor:pointer;z-index:44;padding:0 8px}
@@ -65,8 +79,9 @@ body.studio.canvas-space .canvas-bottom{position:absolute;left:calc(var(--rail) 
 body.studio.canvas-space .canvas-bottom>*{pointer-events:auto;background:#fff;border-radius:6px;border:1px solid #dce3e9;box-shadow:0 2px 8px #2337450a}
 body.studio.canvas-space .zoom-controls{margin:0;display:flex!important;padding:3px;gap:4px}
 body.studio.canvas-space .zoom-controls button{height:32px;width:32px}
-body.studio.canvas-space #expandCanvas{height:40px;white-space:nowrap;font-weight:600;color:#24665b;padding:0 10px;font-size:11px}
-body.studio.canvas-space .grid-legend{top:auto;bottom:58px;left:50%;transform:translateX(-50%);font-size:9px;right:auto;white-space:nowrap;z-index:40;pointer-events:none;background:#ffffffdc;border-radius:4px;padding:3px 6px}
+body.studio.canvas-space #expandCanvas{height:34px;width:34px;min-width:34px;padding:0;font-size:21px;color:#24665b}
+body.studio.canvas-space .grid-guide{margin-top:8px;padding:8px 10px;border:1px solid #dce3e9;border-radius:5px;background:#f7fafb;color:#607481;font-size:12px}
+body.studio.canvas-space .grid-guide #gridLegend{position:static;display:inline;color:inherit;font-size:inherit;white-space:normal;pointer-events:auto;background:none;padding:0;margin:0;transform:none}
 body.studio.canvas-space .canvas-history{position:absolute;left:14px;bottom:12px;display:flex;gap:4px;padding:3px;background:#fff;border:1px solid #dce3e9;border-radius:6px;box-shadow:0 2px 8px #2337450a;z-index:40}
 body.studio.canvas-space .canvas-history #undoBtn,body.studio.canvas-space .canvas-history #redoBtn{display:inline-flex!important;width:32px;min-width:32px;height:32px}
 body.studio.canvas-space .level-picker label{display:none}
@@ -76,7 +91,7 @@ body.studio.canvas-space[data-studio-view="3d"] .hint{display:none}
 body.studio.canvas-space #threeTransformHint{bottom:112px;left:14px;right:auto;max-width:calc(100% - 28px);white-space:normal;pointer-events:none}
 body.studio.canvas-space .compass{bottom:64px;right:14px;width:32px;height:32px}
 body.studio.canvas-space.canvas-focus .app{--library:0px;--properties:0px;--project-height:0px;--nav-height:var(--reveal-height)}
-body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .grid-legend,body.studio.canvas-space.canvas-focus .compass{visibility:hidden}
+body.studio.canvas-space.canvas-focus .hint,body.studio.canvas-space.canvas-focus .compass{visibility:hidden}
 body.studio.canvas-space .app[data-project-visible="false"] .topbar.space-open{position:absolute;top:0;left:0;right:0;box-shadow:0 6px 24px #1b304726}
 body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-navigation.space-open{position:absolute;top:var(--project-height);left:0;right:0;box-shadow:0 6px 24px #1b304726}
 @media(max-width:1199px){
@@ -122,7 +137,7 @@ body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-naviga
  body.studio.canvas-space .bar-reveal{height:44px;width:40px;min-width:40px}
  body.studio.canvas-space .canvas-corners{left:8px;right:8px;top:8px}
  body.studio.canvas-space .canvas-corners .canvas-actions button{width:40px;min-width:40px;height:40px}
- body.studio.canvas-space .canvas-corners .level-picker select{height:40px}
+ body.studio.canvas-space .canvas-corners .level-picker select{width:96px;height:40px}
  body.studio.canvas-space[data-studio-view="3d"] .canvas-floor-corner{flex-direction:row;gap:4px}
  body.studio.canvas-space #workspace #catalogPanel{left:56px}
  body.studio.canvas-space .canvas-bottom{left:64px;right:8px;bottom:8px;gap:5px}
@@ -131,7 +146,7 @@ body.studio.canvas-space .app[data-navigation-visible="false"] .workspace-naviga
  body.studio.canvas-space .hint{bottom:86px}
  body.studio.canvas-space .zoom-controls{gap:0}
  body.studio.canvas-space .zoom-controls button{height:34px;width:28px}
- body.studio.canvas-space #expandCanvas{font-size:10px;padding:0 7px}
+ body.studio.canvas-space #expandCanvas{font-size:21px;padding:0}
  body.studio.canvas-space .panel-close-btn{width:44px;height:44px}
 }
 @media print{body.studio.canvas-space .space-handle,body.studio.canvas-space .canvas-bottom,body.studio.canvas-space .studio-taskbar{display:none!important}}

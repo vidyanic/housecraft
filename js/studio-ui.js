@@ -74,6 +74,7 @@
     if(!initialized)return;
     const s=A.state,ws=$('#workspace'),discipline=s.viewMode==='3d'?'3d':s.workspace||'architecture';
     document.body.dataset.studioView=discipline;
+    const keyboard=$('#moveKeyboardBtn');if(keyboard){keyboard.disabled=discipline==='3d'||A.readOnly;if(keyboard.disabled)A.closeMoveKeyboard?.();}
     // One breakpoint policy for both direct panel buttons and close actions.
     const panel=ws.dataset.mobileTab||'stage';
     $('#tabBtnCatalog').classList.toggle('active',!ws.classList.contains('hide-catalog')&&(!medium()||panel==='catalog'));
@@ -94,6 +95,40 @@
     renderTree();
   }
   function commandButton(label,action,icon){const el=create('button','task-button',icon?A.icon(icon)+'<span>'+label+'</span>':label);el.onclick=action;return el;}
+  function initMoveKeyboard(tools){
+    const launch=create('button','tool','<span aria-hidden="true">⌨</span><span>Keyboard</span>');launch.id='moveKeyboardBtn';launch.title='Open keyboard and precise move arrows';launch.setAttribute('aria-label',launch.title);launch.setAttribute('aria-controls','moveKeyboard');launch.setAttribute('aria-expanded','false');tools.prepend(launch);
+    const panel=create('section','move-keyboard','<div class="move-keyboard-head"><strong>Precise move</strong><button type="button" id="closeMoveKeyboard" aria-label="Close move keyboard">×</button></div><label>Move step<select id="moveKeyboardStep"><option value="1">1 cm</option><option value="5">5 cm</option><option value="grid">Grid step</option></select></label><input id="moveKeyboardInput" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="Keyboard arrow input" aria-describedby="moveKeyboardHint" placeholder="Tap for keyboard"><p id="moveKeyboardHint">Select objects, then use arrows. Touch arrows work without a keyboard.</p><div class="move-keyboard-arrows"><button type="button" data-nudge="ArrowUp" aria-label="Move selection up">↑</button><button type="button" data-nudge="ArrowLeft" aria-label="Move selection left">←</button><button type="button" data-nudge="ArrowDown" aria-label="Move selection down">↓</button><button type="button" data-nudge="ArrowRight" aria-label="Move selection right">→</button></div>');
+    panel.id='moveKeyboard';panel.hidden=true;panel.setAttribute('aria-label','Precise move keyboard');$('#stage').append(panel);
+    const input=$('#moveKeyboardInput');let repeatTimer=null,owner=null;
+    function place(){if(panel.hidden)return;const rect=$('#stage').getBoundingClientRect(),viewport=window.visualViewport,visibleBottom=viewport?viewport.offsetTop+viewport.height:innerHeight;panel.style.bottom=Math.max(64,rect.bottom-visibleBottom+12)+'px';panel.style.maxHeight=Math.max(120,Math.min(rect.bottom,visibleBottom)-rect.top-24)+'px';}
+    window.visualViewport?.addEventListener('resize',place);window.visualViewport?.addEventListener('scroll',place);window.addEventListener('resize',place);
+    A.moveKeyboardStep=()=>$('#moveKeyboardStep').value==='grid'?A.gridStep():Number($('#moveKeyboardStep').value);
+    function stop(cancel=false){clearTimeout(repeatTimer);repeatTimer=null;owner=null;if(cancel&&A.state.nudgeActive)A.cancelInteraction();else A.finishNudge();}
+    function close(returnFocus=false){stop();panel.hidden=true;launch.setAttribute('aria-expanded','false');if(panel.contains(document.activeElement))document.activeElement.blur();if(returnFocus)launch.focus({preventScroll:true});}
+    A.closeMoveKeyboard=close;
+    launch.onclick=()=>{
+      if(!panel.hidden){close(true);return;}
+      A.canvasSpace?.revealCanvas();panel.hidden=false;place();launch.setAttribute('aria-expanded','true');input.focus({preventScroll:true});
+      try{navigator.virtualKeyboard?.show();}catch{}
+    };
+    $('#closeMoveKeyboard').onclick=()=>close(true);
+    input.oninput=()=>{input.value='';};input.addEventListener('blur',()=>A.finishNudge());
+    input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();input.blur();}});
+    panel.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close(true);}});
+    for(const arrow of panel.querySelectorAll('[data-nudge]')){
+      arrow.addEventListener('pointerdown',event=>{
+        if(event.button!==0||owner!==null)return;
+        event.preventDefault();A.finishNudge();owner=event.pointerId;arrow.setPointerCapture(owner);
+        const move=()=>{A.nudgeSelection(arrow.dataset.nudge,A.moveKeyboardStep());repeatTimer=setTimeout(move,90);};
+        A.nudgeSelection(arrow.dataset.nudge,A.moveKeyboardStep());repeatTimer=setTimeout(move,350);
+      });
+      arrow.addEventListener('pointerup',event=>{if(owner===event.pointerId)stop();});
+      arrow.addEventListener('pointercancel',event=>{if(owner===event.pointerId)stop(true);});
+      arrow.addEventListener('lostpointercapture',event=>{if(owner===event.pointerId)stop(true);});
+      arrow.onclick=event=>{if(event.detail===0){A.nudgeSelection(arrow.dataset.nudge,A.moveKeyboardStep());A.finishNudge();}};
+    }
+    window.addEventListener('blur',()=>stop());document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
+  }
   function renderContext(discipline){
     const tools=$('#toolrail'),commands=$('#contextCommands');commands.replaceChildren();
     tools.querySelectorAll('[data-tool]').forEach(b=>{const t=b.dataset.tool;b.hidden=discipline==='3d'||discipline==='structure'&&!['select','pan','column','beam'].includes(t)||discipline==='services'&&!['select','pan','dimension'].includes(t)||discipline==='architecture'&&['column','beam'].includes(t);b.setAttribute('aria-pressed',String(t===A.state.tool));b.draggable=discipline==='structure'&&['column','beam'].includes(t);b.style.touchAction=b.draggable?'none':'';});
@@ -166,6 +201,7 @@
     const nav=create('div','workspace-navigation',`<div class="level-picker"><label for="studioFloor">Floor</label><select id="studioFloor"></select><button class="button" id="studioAddFloor" aria-label="Add floor" title="Add floor">+</button></div>`);
     nav.prepend($('.view-switch'));app.insertBefore(nav,ws);$('.view-switch').setAttribute('role','tablist');$('.view-switch').setAttribute('aria-label','Workspaces');$('.view-switch').querySelectorAll('button').forEach(b=>b.setAttribute('role','tab'));
     const tasks=create('div','studio-taskbar','<div id="contextCommands" class="context-commands"></div><div class="task-panel-actions"></div>');tasks.prepend($('#toolrail'));tasks.lastElementChild.append($('#panelSwitchTabs'));app.insertBefore(tasks,ws);
+    initMoveKeyboard($('#toolrail'));
     $('#tabBtnCatalog').querySelector('span').textContent='Library';$('#tabBtnCatalog').title='Open object library';$('#tabBtnInspector').title='Open properties';
     const actions=$('.top-actions');actions.prepend(create('button','button command-launch','Search commands <kbd>Ctrl K</kbd>'));$('.command-launch').id='commandBtn';
     $('#objectsBtn').textContent='Objects';$('#objectsBtn').classList.remove('desktop-only');$('#objectsBtn').onclick=()=>showLibrary('objects');
